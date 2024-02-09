@@ -21,7 +21,7 @@ class CodeGen : public Visitor<Value*> {
   CodeGen(LLVMContext* context, IRBuilder<>* builder, Module* module)
       : context(context), builder(builder), module(module){};
   Value* visitPrefixExpr(Expr* expr) override {
-    Value* exp = visit(expr->getPrefix()->expr.get());
+    Value* exp = _visit(expr->getPrefix()->expr.get());
     return builder->CreateMul(
         exp, llvm::ConstantInt::get(*context, llvm::APInt(32, -1, true)));
   }
@@ -30,8 +30,8 @@ class CodeGen : public Visitor<Value*> {
                                   llvm::APInt(32, expr->getInt(), true));
   }
   Value* visitBinaryExpr(Expr* expr) override {
-    Value* left = visit(expr->getBinary()->left.get());
-    Value* right = visit(expr->getBinary()->right.get());
+    Value* left = _visit(expr->getBinary()->left.get());
+    Value* right = _visit(expr->getBinary()->right.get());
 
     switch (expr->getBinary()->op) {
       case TOKEN_TYPE::PLUS:
