@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
       context;  // Based off https://layle.me/posts/using-llvm-with-cmake/
   llvm::IRBuilder builder(context);
   const auto module = std::make_unique<llvm::Module>("first type", context);
-  const auto func_type = llvm::FunctionType::get(builder.getVoidTy(), false);
+  const auto func_type = llvm::FunctionType::get(builder.getInt32Ty(), false);
   const auto mainer = llvm::Function::Create(
       func_type, llvm::Function::ExternalLinkage, "main", module.get());
   const auto entry = llvm::BasicBlock::Create(context, "entrypoint", mainer);
@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
   CodeGen code_gen(&context, &builder, module.get());
 
   builder.CreateCall(printfer, {str, code_gen.visit(expr.get())});
-  builder.CreateRetVoid();
+  builder.CreateRet(llvm::ConstantInt::get(builder.getInt32Ty(), llvm::APInt(32, 0, true)));
   module->dump();
   writeModuleToFile(module.get(), argv[2]);
 
