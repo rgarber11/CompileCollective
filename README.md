@@ -22,7 +22,7 @@
 3 + 5 * (4 - 2)  / 2
 ~~~
 3. Run `./SeniorProject math.coco output.o` to generate an object file from the output. Printed to the screen, you'll see a Postfix version of the expression, along with the LLVM IR
-4. Use a C compiler to compile and link the output. (Ex. `clang++ -o main output.o`)
+4. Use a C compiler to link the output. (Ex. `clang++ -o main output.o`)
 5. Running this executable, you'll see the answer to the math equation
 ```bash
 # ./main
