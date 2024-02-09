@@ -1,0 +1,10 @@
+{
+  "dependencies": ["llvm"],
+  "builtin-baseline": "3f806e04fdcf30df33c7b445590c9ac13afef946",
+  "overrides": [
+    {
+      "name": "llvm",
+      "version": "17.0.2"
+    }
+  ]
+}

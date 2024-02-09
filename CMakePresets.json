@@ -1,0 +1,19 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "debug",
+      "binaryDir": "${sourceDir}/out/Debug",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      }
+    },
+    {
+      "name": "debug-jetbrains-richard",
+      "binaryDir": "${sourceDir}/out/DebugJetBrains",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "/home/rgarber11/.local/bin/vcpkg/scripts/buildsystems/vcpkg.cmake"
+      }
+    }
+  ]
+}
