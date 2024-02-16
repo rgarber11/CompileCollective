@@ -11,17 +11,17 @@ struct IntOptimizer : public Visitor<Expr*> {
  private:
   Expr* visitIntExpr(Expr* expr) override { return expr; }
   Expr* visitBinaryExpr(Expr* expr) override {
-    _visit(expr->getBinary()->left.get());
-    _visit(expr->getBinary()->right.get());
+    expr->getBinary()->left.reset(_visit(expr->getBinary()->left.release()));
+    expr->getBinary()->right.reset(_visit(expr->getBinary()->right.release()));
     return expr;
   }
   Expr* visitPrefixExpr(Expr* expr2) override {
+    expr2->getPrefix()->expr.reset(_visit(expr2->getPrefix()->expr.release()));
     if (expr2->getPrefix()->expr->isInt()) {
       int prevVal = expr2->getPrefix()->expr->getInt();
       expr2->innerExpr.emplace<IntExpr>(IntExpr{-1 * prevVal});
       return expr2;
     }
-    _visit(expr2->getPrefix()->expr.get());
     return expr2;
   }
   void enterVisitor() override {}
