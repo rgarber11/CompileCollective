@@ -3,20 +3,20 @@
 
 BinaryExpr::BinaryExpr(const Token &opToken) : op(opToken.type) {}
 BinaryExpr::BinaryExpr(const BinaryExpr &binaryExpr)
-    : op(binaryExpr.op),
-      left(binaryExpr.left ? binaryExpr.left->clone() : nullptr),
-      right(binaryExpr.right ? binaryExpr.right->clone() : nullptr) {}
+    : left(binaryExpr.left ? binaryExpr.left->clone() : nullptr),
+      right(binaryExpr.right ? binaryExpr.right->clone() : nullptr),
+      op(binaryExpr.op) {}
 BinaryExpr::BinaryExpr(BinaryExpr &&binaryExpr) noexcept
-    : op(binaryExpr.op),
-      left(binaryExpr.left ? binaryExpr.left->clone() : nullptr),
-      right(binaryExpr.right ? binaryExpr.right->clone() : nullptr) {}
+    : left(binaryExpr.left ? binaryExpr.left->clone() : nullptr),
+      right(binaryExpr.right ? binaryExpr.right->clone() : nullptr),
+      op(binaryExpr.op) {}
 PrefixExpr::PrefixExpr(const PrefixExpr &prefixExpr)
-    : op(prefixExpr.op),
-      expr(prefixExpr.expr ? prefixExpr.expr->clone() : nullptr) {}
+    : expr(prefixExpr.expr ? prefixExpr.expr->clone() : nullptr),
+      op(prefixExpr.op) {}
 PrefixExpr::PrefixExpr(const Token &opToken) : op(opToken.type) {}
 PrefixExpr::PrefixExpr(PrefixExpr &&prefixExpr) noexcept
-    : op(prefixExpr.op),
-      expr(prefixExpr.expr ? prefixExpr.expr->clone() : nullptr) {}
+    : expr(prefixExpr.expr ? prefixExpr.expr->clone() : nullptr),
+      op(prefixExpr.op) {}
 Expr Expr::makeBinary(const Token &op) {
   return Expr{op.sourceLocation, BinaryExpr{op}};
 }
@@ -25,4 +25,7 @@ Expr Expr::makePrefix(const Token &op) {
 }
 Expr Expr::makeInt(const Token &op, int num) {
   return Expr{op.sourceLocation, IntExpr{num}};
+}
+Expr Expr::makeFloat(const Token &op, double num) {
+  return Expr{op.sourceLocation, FloatExpr{num}};
 }

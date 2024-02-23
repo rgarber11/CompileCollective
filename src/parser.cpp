@@ -50,7 +50,7 @@ std::unique_ptr<Expr> Parser::prefix() {
 }
 std::unique_ptr<Expr> Parser::primary() {
   switch (curr.type) {
-    case TOKEN_TYPE::NUM: {
+    case TOKEN_TYPE::INT: {
       int val{};
       auto result = std::from_chars(curr.text.data(),
                                     curr.text.data() + curr.text.size(), val);
@@ -61,6 +61,20 @@ std::unique_ptr<Expr> Parser::primary() {
       }
       std::unique_ptr<Expr> expr =
           std::make_unique<Expr>(Expr::makeInt(curr, val));
+      curr = lexer.next();
+      return expr;
+    }
+    case TOKEN_TYPE::FLOAT: {
+      double val{};
+      auto result = std::from_chars(curr.text.data(),
+          curr.text.data() + curr.text.size(), val);
+      if (result.ec == std::errc::invalid_argument) {
+        std::cerr << "Could not convert to int at: " << curr.sourceLocation.line
+                  << ":" << curr.sourceLocation.character << ".\n";
+        return {};
+      }
+      std::unique_ptr<Expr> expr =
+          std::make_unique<Expr>(Expr::makeFloat(curr, val));
       curr = lexer.next();
       return expr;
     }

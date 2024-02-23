@@ -10,6 +10,7 @@ using std::unique_ptr, std::pair;
 struct IntOptimizer : public Visitor<Expr*> {
  private:
   Expr* visitIntExpr(Expr* expr) override { return expr; }
+  Expr* visitFloatExpr(Expr* expr) override { return expr; }
   Expr* visitBinaryExpr(Expr* expr) override {
     expr->getBinary()->left.reset(_visit(expr->getBinary()->left.release()));
     expr->getBinary()->right.reset(_visit(expr->getBinary()->right.release()));

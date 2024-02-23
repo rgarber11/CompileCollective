@@ -77,20 +77,30 @@ int main(int argc, char* argv[]) {
       func_type, llvm::Function::ExternalLinkage, "main", module.get());
   const auto entry = llvm::BasicBlock::Create(context, "entrypoint", mainer);
   builder.SetInsertPoint(entry);
-  const std::vector<llvm::Type*> printf_args = {
-      builder.getInt8Ty()->getPointerTo(), builder.getInt32Ty()};
-  const llvm::ArrayRef printf_args_ref(printf_args);
-  const auto printf_type =
-      llvm::FunctionType::get(builder.getInt32Ty(), printf_args_ref, false);
-  const auto printfer = module->getOrInsertFunction("printf", printf_type);
 
-  auto str = builder.CreateGlobalStringPtr("%d\n");
+  llvm::Constant* str;
   CodeGen code_gen(&context, &builder, module.get());
-
+  llvm::Value* val = code_gen.visit(expr.get());
+  llvm::FunctionType* printf_type;
+  if(val->getType() == builder.getInt32Ty()) {
+    str = builder.CreateGlobalStringPtr("%d\n");
+    const std::vector<llvm::Type*> printf_args = {
+        builder.getInt8Ty()->getPointerTo(), builder.getInt32Ty()};
+    const llvm::ArrayRef printf_args_ref(printf_args);
+    printf_type =
+        llvm::FunctionType::get(builder.getInt32Ty(), printf_args_ref, true);
+  } else {
+    str = builder.CreateGlobalStringPtr("%f\n");
+    const std::vector<llvm::Type*> printf_args = {
+        builder.getInt8Ty()->getPointerTo(), builder.getDoubleTy()};
+    const llvm::ArrayRef printf_args_ref(printf_args);
+    printf_type =
+        llvm::FunctionType::get(builder.getInt32Ty(), printf_args_ref, true);
+  }
+  const auto printfer = module->getOrInsertFunction("printf", printf_type);
   builder.CreateCall(printfer, {str, code_gen.visit(expr.get())});
   builder.CreateRet(llvm::ConstantInt::get(builder.getInt32Ty(), llvm::APInt(32, 0, true)));
   module->dump();
   writeModuleToFile(module.get(), argv[2]);
-
   return 0;
 }

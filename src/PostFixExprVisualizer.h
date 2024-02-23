@@ -24,6 +24,14 @@ class PostFixExprVisualizer : public Visitor<void> {
     _visit(expr->getPrefix()->expr.get());
     std::cout << ' ' << debugTokenTypes(expr->getPrefix()->op);
   }
+  void visitFloatExpr(Expr *expr) override {
+    if (first) {
+      first = false;
+      std::cout << expr->getFloat();
+    } else {
+      std::cout << ' ' << expr->getFloat();
+    }
+  }
   void enterVisitor() override {}
   void exitVisitor() override {
     first = true;
