@@ -13,6 +13,9 @@ void Lexer::skipWhitespace() {
     ++pos;
   }
 }
+bool isNumeric(const char t) {
+  return t >= '0' && t <= '9';
+}
 Token Lexer::next() {
   skipWhitespace();
   if (pos >= input.size()) return Token{TOKEN_TYPE::FILE_END, "", curr};
@@ -47,10 +50,17 @@ Token Lexer::next() {
     case '7':
     case '8':
     case '9':
-      while (input.at(pos + len) >= '0' && input.at(pos + len) <= '9') {
+      while (pos + len < input.size() && isNumeric(input.at(pos+len))) {
         ++len;
       }
-      type = TOKEN_TYPE::NUM;
+      type = TOKEN_TYPE::INT;
+      if(input.at(pos + len) == '.') {
+        type = TOKEN_TYPE::FLOAT;
+        ++len;
+      }
+      while(pos + len < input.size() && isNumeric(input.at(pos+len))) {
+        ++len;
+      }
       break;
   }
   if (type == TOKEN_TYPE::ERROR) return Token{type, "Invalid Character.", curr};

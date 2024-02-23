@@ -6,7 +6,7 @@
 
 #include "common.h"
 enum class TOKEN_TYPE {
-  NUM,
+  INT,
   PLUS,
   MINUS,
   STAR,
@@ -15,6 +15,8 @@ enum class TOKEN_TYPE {
   ERROR,
   LEFT_PAREN,
   RIGHT_PAREN,
+  FLOAT
+
 
 };
 std::string debugTokenTypes(TOKEN_TYPE type);
