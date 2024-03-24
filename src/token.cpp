@@ -3,8 +3,8 @@
 
 std::string debugTokenTypes(TOKEN_TYPE type) {
   switch (type) {
-    case TOKEN_TYPE::NUM:
-      return "NUM";
+    case TOKEN_TYPE::INT:
+      return "INT";
 
     case TOKEN_TYPE::PLUS:
       return "+";
@@ -29,6 +29,8 @@ std::string debugTokenTypes(TOKEN_TYPE type) {
 
     case TOKEN_TYPE::RIGHT_PAREN:
       return ")";
+    case TOKEN_TYPE::FLOAT:
+      return "FLOAT";
   }
   return "";
 }

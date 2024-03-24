@@ -22,29 +22,55 @@ class CodeGen : public Visitor<Value*> {
       : context(context), builder(builder), module(module){};
   Value* visitPrefixExpr(Expr* expr) override {
     Value* exp = _visit(expr->getPrefix()->expr.get());
-    return builder->CreateMul(
-        exp, llvm::ConstantInt::get(*context, llvm::APInt(32, -1, true)));
+    if(expr->type == TOKEN_TYPE::INT) {
+      return builder->CreateMul(
+          exp, llvm::ConstantInt::get(*context, llvm::APInt(32, -1, true)));
+    } else {
+      return builder->CreateFMul(
+          exp, llvm::ConstantFP::get(*context, llvm::APFloat((double)-1.0f)));
+    }
   }
   Value* visitIntExpr(Expr* expr) override {
     return llvm::ConstantInt::get(*context,
                                   llvm::APInt(32, expr->getInt(), true));
   }
+  Value* visitFloatExpr(Expr* expr) override {
+    return llvm::ConstantFP::get(*context, llvm::APFloat(expr->getFloat()));
+  }
   Value* visitBinaryExpr(Expr* expr) override {
     Value* left = _visit(expr->getBinary()->left.get());
     Value* right = _visit(expr->getBinary()->right.get());
-
-    switch (expr->getBinary()->op) {
-      case TOKEN_TYPE::PLUS:
-        return builder->CreateAdd(left, right);
-      case TOKEN_TYPE::MINUS:
-        return builder->CreateSub(left, right);
-      case TOKEN_TYPE::STAR:
-        return builder->CreateMul(left, right);
-      case TOKEN_TYPE::SLASH:
-        return builder->CreateSDiv(left, right);
-      default:
-        return nullptr;
+    if(expr->type == TOKEN_TYPE::INT) {
+      switch (expr->getBinary()->op) {
+        case TOKEN_TYPE::PLUS:
+          return builder->CreateAdd(left, right);
+        case TOKEN_TYPE::MINUS:
+          return builder->CreateSub(left, right);
+        case TOKEN_TYPE::STAR:
+          return builder->CreateMul(left, right);
+        case TOKEN_TYPE::SLASH:
+          return builder->CreateSDiv(left, right);
+        default:
+          return nullptr;
+      }
+    } else {
+      switch (expr->getBinary()->op) {
+        case TOKEN_TYPE::PLUS:
+          return builder->CreateFAdd(left, right);
+        case TOKEN_TYPE::MINUS:
+          return builder->CreateFSub(left, right);
+        case TOKEN_TYPE::STAR:
+          return builder->CreateFMul(left, right);
+        case TOKEN_TYPE::SLASH:
+          return builder->CreateFDiv(left, right);
+        default:
+          return nullptr;
+      }
     }
+  }
+  Value* visitImplicitTypeConvExpr(Expr* expr) override {
+    Value* exp = _visit(expr->getImplicitTypeConvExpr()->expr.get());
+    return builder->CreateSIToFP(exp, builder->getDoubleTy());
   }
   void enterVisitor() override {}
   void exitVisitor() override {}
