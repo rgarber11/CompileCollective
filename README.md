@@ -1,6 +1,6 @@
 # Compile Collective
 ## Features Added
-- [x] Integer Addition, Subtraction, Multiplication, Division
+- [x] Addition, Subtraction, Multiplication, Division
 - [x] Parenthetical Expressions
 - [x] Some Front End, Back End
 - [ ] Functions
