@@ -47,7 +47,7 @@ struct ImplicitTypeConvExpr {
   std::unique_ptr<Expr> expr;
   explicit ImplicitTypeConvExpr(const TOKEN_TYPE& from, const TOKEN_TYPE& to);
   ImplicitTypeConvExpr(const ImplicitTypeConvExpr& implicitTypeConvExpr);
-  ImplicitTypeConvExpr(ImplicitTypeConvExpr&& implicitTypeConvExpr) noexcept ;
+  ImplicitTypeConvExpr(ImplicitTypeConvExpr&& implicitTypeConvExpr) noexcept;
   ~ImplicitTypeConvExpr() = default;
 };
 using InnerExpr = std::variant<BinaryExpr, PrefixExpr, IntExpr, FloatExpr,
@@ -82,7 +82,8 @@ struct Expr {
   static Expr makePrefix(const Token& op, const TOKEN_TYPE& token_type);
   static Expr makeInt(const Token& op, int num);
   static Expr makeFloat(const Token& op, double num);
-  static Expr makeImplicitTypeConv(const SourceLocation& source_location, const TOKEN_TYPE& from,
+  static Expr makeImplicitTypeConv(const SourceLocation& source_location,
+                                   const TOKEN_TYPE& from,
                                    const TOKEN_TYPE& to);
   [[nodiscard]] BinaryExpr* getBinary() {
     return &std::get<BinaryExpr>(innerExpr);

@@ -2,6 +2,7 @@
 
 #ifndef SENIORPROJECT_TYPE_CHECKER_H
 #define SENIORPROJECT_TYPE_CHECKER_H
+#include <memory>
 #include <utility>
 
 #include "expr.h"
@@ -12,17 +13,21 @@ struct TypeChecker : public Visitor<Expr*> {
   Expr* visitBinaryExpr(Expr* expr) override {
     _visit(expr->getBinary()->left.get());
     _visit(expr->getBinary()->right.get());
-    if(expr->getBinary()->left->type == expr->getBinary()->right->type) {
+    if (expr->getBinary()->left->type == expr->getBinary()->right->type) {
       expr->type = expr->getBinary()->left->type;
-    } else if(expr->getBinary()->left->type == TOKEN_TYPE::FLOAT) {
+    } else if (expr->getBinary()->left->type == TOKEN_TYPE::FLOAT) {
       expr->type = TOKEN_TYPE::FLOAT;
-      auto newRight = std::make_unique<Expr>(Expr::makeImplicitTypeConv(expr->sourceLocation, TOKEN_TYPE::INT, TOKEN_TYPE::FLOAT));
-      newRight->getImplicitTypeConvExpr()->expr = std::move(expr->getBinary()->right);
+      auto newRight = std::make_unique<Expr>(Expr::makeImplicitTypeConv(
+          expr->sourceLocation, TOKEN_TYPE::INT, TOKEN_TYPE::FLOAT));
+      newRight->getImplicitTypeConvExpr()->expr =
+          std::move(expr->getBinary()->right);
       expr->getBinary()->right = std::move(newRight);
     } else {
       expr->type = TOKEN_TYPE::FLOAT;
-      auto newLeft = std::make_unique<Expr>(Expr::makeImplicitTypeConv(expr->sourceLocation, TOKEN_TYPE::INT, TOKEN_TYPE::FLOAT));
-      newLeft->getImplicitTypeConvExpr()->expr = std::move(expr->getBinary()->left);
+      auto newLeft = std::make_unique<Expr>(Expr::makeImplicitTypeConv(
+          expr->sourceLocation, TOKEN_TYPE::INT, TOKEN_TYPE::FLOAT));
+      newLeft->getImplicitTypeConvExpr()->expr =
+          std::move(expr->getBinary()->left);
       expr->getBinary()->left = std::move(newLeft);
     }
     return expr;
@@ -41,9 +46,7 @@ struct TypeChecker : public Visitor<Expr*> {
     }
     return expr2;
   }
-  Expr* visitImplicitTypeConvExpr(Expr* expr) override {
-    return expr;
-  }
+  Expr* visitImplicitTypeConvExpr(Expr* expr) override { return expr; }
   void enterVisitor() override {}
   void exitVisitor() override {}
 };

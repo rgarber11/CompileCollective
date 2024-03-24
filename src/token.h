@@ -17,7 +17,6 @@ enum class TOKEN_TYPE {
   RIGHT_PAREN,
   FLOAT
 
-
 };
 std::string debugTokenTypes(TOKEN_TYPE type);
 struct Token {

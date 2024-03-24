@@ -42,7 +42,8 @@ std::unique_ptr<Expr> Parser::mult() {
 }
 std::unique_ptr<Expr> Parser::prefix() {
   if (curr.type == TOKEN_TYPE::MINUS) {
-    std::unique_ptr<Expr> expr = std::make_unique<Expr>(Expr::makePrefix(curr, TOKEN_TYPE::INT));
+    std::unique_ptr<Expr> expr =
+        std::make_unique<Expr>(Expr::makePrefix(curr, TOKEN_TYPE::INT));
     curr = lexer.next();
     expr->getPrefix()->expr = primary();
     expr->type = expr->getPrefix()->expr->type;
@@ -70,7 +71,7 @@ std::unique_ptr<Expr> Parser::primary() {
     case TOKEN_TYPE::FLOAT: {
       double val{};
       auto result = std::from_chars(curr.text.data(),
-          curr.text.data() + curr.text.size(), val);
+                                    curr.text.data() + curr.text.size(), val);
       if (result.ec == std::errc::invalid_argument) {
         std::cerr << "Could not convert to int at: " << curr.sourceLocation.line
                   << ":" << curr.sourceLocation.character << ".\n";

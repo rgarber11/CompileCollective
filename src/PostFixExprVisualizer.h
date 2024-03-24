@@ -37,7 +37,7 @@ class PostFixExprVisualizer : public Visitor<void> {
     first = true;
     std::cout << '\n';
   }
-  void visitImplicitTypeConvExpr(Expr* expr) override {
+  void visitImplicitTypeConvExpr(Expr *expr) override {
     _visit(expr->getImplicitTypeConvExpr()->expr.get());
   }
 };

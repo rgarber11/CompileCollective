@@ -18,21 +18,16 @@
 #include "PostFixExprVisualizer.h"
 #include "codegen.h"
 #include "lexer.h"
-#include "type_checker.h"
 #include "parser.h"
+#include "type_checker.h"
 std::string readFile(const char* path) {
   std::ifstream file(path);
   std::stringstream ss;
   ss << file.rdbuf();
   return ss.str();
 }
-void createMain(
-    LLVMContext* context,
-    Module* module,
-    IRBuilder<>* builder,
-    Value* val
-    ) {
-
+void createMain(LLVMContext* context, Module* module, IRBuilder<>* builder,
+                Value* val) {
   const auto func_type = llvm::FunctionType::get(builder->getInt32Ty(), false);
   const auto mainer = llvm::Function::Create(
       func_type, llvm::Function::ExternalLinkage, "main", module);
@@ -41,7 +36,7 @@ void createMain(
 
   llvm::Constant* str;
   llvm::FunctionType* printf_type;
-  if(val->getType() == builder->getInt32Ty()) {
+  if (val->getType() == builder->getInt32Ty()) {
     str = builder->CreateGlobalStringPtr("%d\n");
     const std::vector<llvm::Type*> printf_args = {
         builder->getInt8Ty()->getPointerTo(), builder->getInt32Ty()};
@@ -58,7 +53,8 @@ void createMain(
   }
   const auto printfer = module->getOrInsertFunction("printf", printf_type);
   builder->CreateCall(printfer, {str, val});
-  builder->CreateRet(llvm::ConstantInt::get(builder->getInt32Ty(), llvm::APInt(32, 0, true)));
+  builder->CreateRet(
+      llvm::ConstantInt::get(builder->getInt32Ty(), llvm::APInt(32, 0, true)));
   module->dump();
 }
 void writeModuleToFile(
