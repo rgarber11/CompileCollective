@@ -1,6 +1,4 @@
-//
-// Created by rgarber11 on 3/24/24.
-//
+// Copyright (c) 2024 Compile Collective. All Rights Reserved.
 
 #ifndef SENIORPROJECT_TYPE_CHECKER_H
 #define SENIORPROJECT_TYPE_CHECKER_H
