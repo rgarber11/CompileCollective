@@ -47,13 +47,14 @@ struct ImplicitTypeConvExpr {
   std::unique_ptr<Expr> expr;
   explicit ImplicitTypeConvExpr(const TOKEN_TYPE& from, const TOKEN_TYPE& to);
   ImplicitTypeConvExpr(const ImplicitTypeConvExpr& implicitTypeConvExpr);
-  ImplicitTypeConvExpr(ImplicitTypeConvExpr&& implicitTypeConvExpr);
+  ImplicitTypeConvExpr(ImplicitTypeConvExpr&& implicitTypeConvExpr) noexcept ;
   ~ImplicitTypeConvExpr() = default;
 };
 using InnerExpr = std::variant<BinaryExpr, PrefixExpr, IntExpr, FloatExpr,
                                ImplicitTypeConvExpr>;
 struct Expr {
   const SourceLocation sourceLocation;
+  TOKEN_TYPE type;
   InnerExpr innerExpr;
   template <typename R>
   R accept(Visitor<R>* visitor) {
@@ -75,13 +76,13 @@ struct Expr {
         innerExpr);
   }
   [[nodiscard]] std::unique_ptr<Expr> clone() const {
-    return std::make_unique<Expr>(sourceLocation, innerExpr);
+    return std::make_unique<Expr>(sourceLocation, type, innerExpr);
   }
-  static Expr makeBinary(const Token& op);
-  static Expr makePrefix(const Token& op);
+  static Expr makeBinary(const Token& op, const TOKEN_TYPE& token_type);
+  static Expr makePrefix(const Token& op, const TOKEN_TYPE& token_type);
   static Expr makeInt(const Token& op, int num);
   static Expr makeFloat(const Token& op, double num);
-  static Expr makeImplicitTypeConv(const Token& op, const TOKEN_TYPE& from,
+  static Expr makeImplicitTypeConv(const SourceLocation& source_location, const TOKEN_TYPE& from,
                                    const TOKEN_TYPE& to);
   [[nodiscard]] BinaryExpr* getBinary() {
     return &std::get<BinaryExpr>(innerExpr);

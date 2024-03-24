@@ -17,14 +17,49 @@
 
 #include "PostFixExprVisualizer.h"
 #include "codegen.h"
-#include "int_optimizer.h"
 #include "lexer.h"
+#include "type_checker.h"
 #include "parser.h"
 std::string readFile(const char* path) {
   std::ifstream file(path);
   std::stringstream ss;
   ss << file.rdbuf();
   return ss.str();
+}
+void createMain(
+    LLVMContext* context,
+    Module* module,
+    IRBuilder<>* builder,
+    Value* val
+    ) {
+
+  const auto func_type = llvm::FunctionType::get(builder->getInt32Ty(), false);
+  const auto mainer = llvm::Function::Create(
+      func_type, llvm::Function::ExternalLinkage, "main", module);
+  const auto entry = llvm::BasicBlock::Create(*context, "entrypoint", mainer);
+  builder->SetInsertPoint(entry);
+
+  llvm::Constant* str;
+  llvm::FunctionType* printf_type;
+  if(val->getType() == builder->getInt32Ty()) {
+    str = builder->CreateGlobalStringPtr("%d\n");
+    const std::vector<llvm::Type*> printf_args = {
+        builder->getInt8Ty()->getPointerTo(), builder->getInt32Ty()};
+    const llvm::ArrayRef printf_args_ref(printf_args);
+    printf_type =
+        llvm::FunctionType::get(builder->getInt32Ty(), printf_args_ref, true);
+  } else {
+    str = builder->CreateGlobalStringPtr("%f\n");
+    const std::vector<llvm::Type*> printf_args = {
+        builder->getInt8Ty()->getPointerTo(), builder->getDoubleTy()};
+    const llvm::ArrayRef printf_args_ref(printf_args);
+    printf_type =
+        llvm::FunctionType::get(builder->getInt32Ty(), printf_args_ref, true);
+  }
+  const auto printfer = module->getOrInsertFunction("printf", printf_type);
+  builder->CreateCall(printfer, {str, val});
+  builder->CreateRet(llvm::ConstantInt::get(builder->getInt32Ty(), llvm::APInt(32, 0, true)));
+  module->dump();
 }
 void writeModuleToFile(
     Module* module,
@@ -64,43 +99,17 @@ int main(int argc, char* argv[]) {
   Parser parser{Lexer{input}};
   auto expr = parser.parse();
   PostFixExprVisualizer printer{};
-  IntOptimizer optimizer{};
-  optimizer.visit(expr.get());
+  TypeChecker type_checker{};
+  type_checker.visit(expr.get());
   printer.visit(expr.get());
 
   llvm::LLVMContext
       context;  // Based off https://layle.me/posts/using-llvm-with-cmake/
   llvm::IRBuilder builder(context);
   const auto module = std::make_unique<llvm::Module>("first type", context);
-  const auto func_type = llvm::FunctionType::get(builder.getInt32Ty(), false);
-  const auto mainer = llvm::Function::Create(
-      func_type, llvm::Function::ExternalLinkage, "main", module.get());
-  const auto entry = llvm::BasicBlock::Create(context, "entrypoint", mainer);
-  builder.SetInsertPoint(entry);
-
-  llvm::Constant* str;
   CodeGen code_gen(&context, &builder, module.get());
   llvm::Value* val = code_gen.visit(expr.get());
-  llvm::FunctionType* printf_type;
-  if(val->getType() == builder.getInt32Ty()) {
-    str = builder.CreateGlobalStringPtr("%d\n");
-    const std::vector<llvm::Type*> printf_args = {
-        builder.getInt8Ty()->getPointerTo(), builder.getInt32Ty()};
-    const llvm::ArrayRef printf_args_ref(printf_args);
-    printf_type =
-        llvm::FunctionType::get(builder.getInt32Ty(), printf_args_ref, true);
-  } else {
-    str = builder.CreateGlobalStringPtr("%f\n");
-    const std::vector<llvm::Type*> printf_args = {
-        builder.getInt8Ty()->getPointerTo(), builder.getDoubleTy()};
-    const llvm::ArrayRef printf_args_ref(printf_args);
-    printf_type =
-        llvm::FunctionType::get(builder.getInt32Ty(), printf_args_ref, true);
-  }
-  const auto printfer = module->getOrInsertFunction("printf", printf_type);
-  builder.CreateCall(printfer, {str, code_gen.visit(expr.get())});
-  builder.CreateRet(llvm::ConstantInt::get(builder.getInt32Ty(), llvm::APInt(32, 0, true)));
-  module->dump();
+  createMain(&context, module.get(), &builder, val);
   writeModuleToFile(module.get(), argv[2]);
   return 0;
 }

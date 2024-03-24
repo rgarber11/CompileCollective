@@ -22,7 +22,7 @@ class CodeGen : public Visitor<Value*> {
       : context(context), builder(builder), module(module){};
   Value* visitPrefixExpr(Expr* expr) override {
     Value* exp = _visit(expr->getPrefix()->expr.get());
-    if(exp->getType() == builder->getInt32Ty()) {
+    if(expr->type == TOKEN_TYPE::INT) {
       return builder->CreateMul(
           exp, llvm::ConstantInt::get(*context, llvm::APInt(32, -1, true)));
     } else {
@@ -40,7 +40,7 @@ class CodeGen : public Visitor<Value*> {
   Value* visitBinaryExpr(Expr* expr) override {
     Value* left = _visit(expr->getBinary()->left.get());
     Value* right = _visit(expr->getBinary()->right.get());
-    if(left->getType() == builder->getInt32Ty() && right->getType() == builder->getInt32Ty()) {
+    if(expr->type == TOKEN_TYPE::INT) {
       switch (expr->getBinary()->op) {
         case TOKEN_TYPE::PLUS:
           return builder->CreateAdd(left, right);
@@ -54,12 +54,6 @@ class CodeGen : public Visitor<Value*> {
           return nullptr;
       }
     } else {
-      if(left->getType() == builder->getInt32Ty()) {
-        left = builder->CreateSIToFP(left, builder->getDoubleTy());
-      }
-      if(right->getType() == builder->getInt32Ty()) {
-        right = builder->CreateSIToFP(right, builder->getDoubleTy());
-      }
       switch (expr->getBinary()->op) {
         case TOKEN_TYPE::PLUS:
           return builder->CreateFAdd(left, right);
@@ -73,6 +67,10 @@ class CodeGen : public Visitor<Value*> {
           return nullptr;
       }
     }
+  }
+  Value* visitImplicitTypeConvExpr(Expr* expr) override {
+    Value* exp = _visit(expr->getImplicitTypeConvExpr()->expr.get());
+    return builder->CreateSIToFP(exp, builder->getDoubleTy());
   }
   void enterVisitor() override {}
   void exitVisitor() override {}

@@ -3,13 +3,14 @@
 #define INCLUDE_SENIORPROJECT_PARSER_H_
 
 #include <memory>
+#include <utility>
 
 #include "expr.h"
 #include "lexer.h"
 #include "token.h"
 class Parser {
  public:
-  explicit Parser(Lexer lexer) : lexer(lexer) {}
+  explicit Parser(Lexer lexer) : lexer(std::move(lexer)) {}
   Parser(Parser&& parser) : lexer(parser.lexer), curr(parser.curr) {}
   Parser(const Parser& parser) : lexer(parser.lexer), curr(parser.curr) {}
   ~Parser() = default;

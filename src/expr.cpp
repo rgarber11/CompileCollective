@@ -29,24 +29,24 @@ ImplicitTypeConvExpr::ImplicitTypeConvExpr(
       expr(implicitTypeConvExpr.expr ? implicitTypeConvExpr.expr->clone()
                                      : nullptr) {}
 ImplicitTypeConvExpr::ImplicitTypeConvExpr(
-    ImplicitTypeConvExpr &&implicitTypeConvExpr)
+    ImplicitTypeConvExpr &&implicitTypeConvExpr) noexcept
     : from(implicitTypeConvExpr.from),
       to(implicitTypeConvExpr.to),
       expr(implicitTypeConvExpr.expr ? implicitTypeConvExpr.expr->clone()
                                      : nullptr) {}
-Expr Expr::makeBinary(const Token &op) {
-  return Expr{op.sourceLocation, BinaryExpr{op}};
+Expr Expr::makeBinary(const Token &op, const TOKEN_TYPE &token_type) {
+  return Expr{op.sourceLocation, token_type, BinaryExpr{op}};
 }
-Expr Expr::makePrefix(const Token &op) {
-  return Expr{op.sourceLocation, PrefixExpr{op}};
+Expr Expr::makePrefix(const Token &op, const TOKEN_TYPE &token_type) {
+  return Expr{op.sourceLocation, token_type, PrefixExpr{op}};
 }
 Expr Expr::makeInt(const Token &op, int num) {
-  return Expr{op.sourceLocation, IntExpr{num}};
+  return Expr{op.sourceLocation, TOKEN_TYPE::INT, IntExpr{num}};
 }
 Expr Expr::makeFloat(const Token &op, double num) {
-  return Expr{op.sourceLocation, FloatExpr{num}};
+  return Expr{op.sourceLocation, TOKEN_TYPE::FLOAT, FloatExpr{num}};
 }
-Expr Expr::makeImplicitTypeConv(const Token &op, const TOKEN_TYPE &from,
-                                const TOKEN_TYPE &to) {
-  return Expr{op.sourceLocation, ImplicitTypeConvExpr{from, to}};
+Expr Expr::makeImplicitTypeConv(const SourceLocation &source_location,
+                                const TOKEN_TYPE &from, const TOKEN_TYPE &to) {
+  return Expr{source_location, to, ImplicitTypeConvExpr{from, to}};
 }

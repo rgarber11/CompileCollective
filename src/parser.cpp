@@ -18,9 +18,10 @@ std::unique_ptr<Expr> Parser::add() {
   std::unique_ptr<Expr> expr = mult();
   while (curr.type == TOKEN_TYPE::PLUS || curr.type == TOKEN_TYPE::MINUS) {
     std::unique_ptr<Expr> binary =
-        std::make_unique<Expr>(Expr::makeBinary(curr));
+        std::make_unique<Expr>(Expr::makeBinary(curr, TOKEN_TYPE::INT));
     curr = lexer.next();
     binary->getBinary()->left = std::move(expr);
+    binary->type = binary->getBinary()->left->type;
     binary->getBinary()->right = mult();
     expr = std::move(binary);
   }
@@ -30,9 +31,10 @@ std::unique_ptr<Expr> Parser::mult() {
   std::unique_ptr<Expr> expr = prefix();
   while (curr.type == TOKEN_TYPE::STAR || curr.type == TOKEN_TYPE::SLASH) {
     std::unique_ptr<Expr> binary =
-        std::make_unique<Expr>(Expr::makeBinary(curr));
+        std::make_unique<Expr>(Expr::makeBinary(curr, TOKEN_TYPE::INT));
     curr = lexer.next();
     binary->getBinary()->left = std::move(expr);
+    binary->type = binary->getBinary()->left->type;
     binary->getBinary()->right = prefix();
     expr = std::move(binary);
   }
@@ -40,9 +42,10 @@ std::unique_ptr<Expr> Parser::mult() {
 }
 std::unique_ptr<Expr> Parser::prefix() {
   if (curr.type == TOKEN_TYPE::MINUS) {
-    std::unique_ptr<Expr> expr = std::make_unique<Expr>(Expr::makePrefix(curr));
+    std::unique_ptr<Expr> expr = std::make_unique<Expr>(Expr::makePrefix(curr, TOKEN_TYPE::INT));
     curr = lexer.next();
     expr->getPrefix()->expr = primary();
+    expr->type = expr->getPrefix()->expr->type;
     return expr;
   } else {
     return primary();
