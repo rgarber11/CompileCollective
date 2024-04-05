@@ -5,32 +5,122 @@ std::string debugTokenTypes(TOKEN_TYPE type) {
   switch (type) {
     case TOKEN_TYPE::INT:
       return "INT";
-
     case TOKEN_TYPE::PLUS:
-      return "+";
-
+      return "PLUS";
     case TOKEN_TYPE::MINUS:
-      return "-";
-
+      return "MINUS";
     case TOKEN_TYPE::STAR:
-      return "*";
-
+      return "STAR";
     case TOKEN_TYPE::SLASH:
-      return "/";
-
+      return "SLASH";
     case TOKEN_TYPE::FILE_END:
       return "FILE_END";
-
     case TOKEN_TYPE::ERROR:
       return "ERROR";
-
     case TOKEN_TYPE::LEFT_PAREN:
-      return "(";
-
+      return "LEFT_PAREN";
     case TOKEN_TYPE::RIGHT_PAREN:
-      return ")";
+      return "RIGHT_PAREN";
     case TOKEN_TYPE::FLOAT:
       return "FLOAT";
+    case TOKEN_TYPE::LET:
+      return "LET";
+    case TOKEN_TYPE::COMMA:
+      return "COMMA";
+    case TOKEN_TYPE::CONST:
+      return "CONST";
+    case TOKEN_TYPE::FOR:
+      return "FOR";
+    case TOKEN_TYPE::WHILE:
+      return "WHILE";
+    case TOKEN_TYPE::IF:
+      return "IF";
+    case TOKEN_TYPE::LANGLE:
+      return "LANGLE";
+    case TOKEN_TYPE::RANGLE:
+      return "RANGLE";
+    case TOKEN_TYPE::ASSIGN:
+      return "ASSIGN";
+    case TOKEN_TYPE::EQUALS:
+      return "EQUALS";
+    case TOKEN_TYPE::GEQ:
+      return "GEQ";
+    case TOKEN_TYPE::LEQ:
+      return "LEQ";
+    case TOKEN_TYPE::IDEN:
+      return "IDEN";
+    case TOKEN_TYPE::TRUE:
+      return "TRUE";
+    case TOKEN_TYPE::FALSE:
+      return "FALSE";
+    case TOKEN_TYPE::SEMI:
+      return "SEMI";
+    case TOKEN_TYPE::RETURN:
+      return "RETURN";
+    case TOKEN_TYPE::YIELD:
+      return "YIELD";
+    case TOKEN_TYPE::AND:
+      return "AND";
+    case TOKEN_TYPE::BITAND:
+      return "BITAND";
+    case TOKEN_TYPE::NOT:
+      return "NOT";
+    case TOKEN_TYPE::XOR:
+      return "XOR";
+    case TOKEN_TYPE::OR:
+      return "OR";
+    case TOKEN_TYPE::BITOR:
+      return "BITOR";
+    case TOKEN_TYPE::LSHIFT:
+      return "LSHIFT";
+    case TOKEN_TYPE::RSHIFT:
+      return "RSHIFT";
+    case TOKEN_TYPE::STRING:
+      return "STRING";
+    case TOKEN_TYPE::CHAR:
+      return "CHAR";
+    case TOKEN_TYPE::FN:
+      return "FN";
+    case TOKEN_TYPE::CLASS:
+      return "CLASS";
+    case TOKEN_TYPE::IMPL:
+      return "IMPL";
+    case TOKEN_TYPE::LSQUARE:
+      return "LSQUARE";
+    case TOKEN_TYPE::RSQUARE:
+      return "RSQUARE";
+    case TOKEN_TYPE::LBRACKET:
+      return "LBRACKET";
+    case TOKEN_TYPE::RBRACKET:
+      return "RBRACKET";
+    case TOKEN_TYPE::MATCH:
+      return "MATCH";
+    case TOKEN_TYPE::CASE:
+      return "CASE";
+    case TOKEN_TYPE::SELF:
+      return "SELF";
+    case TOKEN_TYPE::ELSE:
+      return "ELSE";
+    case TOKEN_TYPE::IN:
+      return "IN";
+    case TOKEN_TYPE::DOT:
+      return "DOT";
+    case TOKEN_TYPE::RANGE:
+      return "RANGE";
+    case TOKEN_TYPE::INCRANGE:
+      return "INCRANGE";
+    case TOKEN_TYPE::TYPE:
+      return "TYPE";
+    case TOKEN_TYPE::COLON:
+      return "COLON";
+    case TOKEN_TYPE::ARROW:
+      return "ARROW";
+    case TOKEN_TYPE::OPTIONAL:
+      return "OPTIONAL";
+    case TOKEN_TYPE::LIST:
+      return "LIST";
+    case TOKEN_TYPE::NEQUALS:
+      return "NEQUALS";
   }
   return "";
 }

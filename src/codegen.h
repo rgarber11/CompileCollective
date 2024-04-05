@@ -19,15 +19,15 @@ class CodeGen : public Visitor<Value*> {
 
  public:
   CodeGen(LLVMContext* context, IRBuilder<>* builder, Module* module)
-      : context(context), builder(builder), module(module){};
+      : context(context), builder(builder), module(module) {}
   Value* visitPrefixExpr(Expr* expr) override {
     Value* exp = _visit(expr->getPrefix()->expr.get());
-    if(expr->type == TOKEN_TYPE::INT) {
+    if (expr->type == TOKEN_TYPE::INT) {
       return builder->CreateMul(
           exp, llvm::ConstantInt::get(*context, llvm::APInt(32, -1, true)));
     } else {
       return builder->CreateFMul(
-          exp, llvm::ConstantFP::get(*context, llvm::APFloat((double)-1.0f)));
+          exp, llvm::ConstantFP::get(*context, llvm::APFloat(-1.0f)));
     }
   }
   Value* visitIntExpr(Expr* expr) override {
@@ -40,7 +40,7 @@ class CodeGen : public Visitor<Value*> {
   Value* visitBinaryExpr(Expr* expr) override {
     Value* left = _visit(expr->getBinary()->left.get());
     Value* right = _visit(expr->getBinary()->right.get());
-    if(expr->type == TOKEN_TYPE::INT) {
+    if (expr->type == TOKEN_TYPE::INT) {
       switch (expr->getBinary()->op) {
         case TOKEN_TYPE::PLUS:
           return builder->CreateAdd(left, right);

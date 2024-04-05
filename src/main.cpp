@@ -1,5 +1,5 @@
 // Copyright (c) 2024 Compile Collective. All Rights Reserved.
-
+/*
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
 #include <clang/Frontend/TextDiagnosticPrinter.h>
@@ -14,12 +14,17 @@
 
 #include <fstream>
 #include <sstream>
+*/
+// #include "PostFixExprVisualizer.h"
+// #include "codegen.h"
+#include <iostream>
+#include <vector>
 
-#include "PostFixExprVisualizer.h"
-#include "codegen.h"
 #include "lexer.h"
-#include "parser.h"
-#include "type_checker.h"
+#include "token.h"
+// #include "parser.h"
+// #include "type_checker.h"
+/*
 std::string readFile(const char* path) {
   std::ifstream file(path);
   std::stringstream ss;
@@ -61,7 +66,8 @@ void writeModuleToFile(
     Module* module,
     const char*
         path)  // For now using answer from
-               // https://stackoverflow.com/questions/11657529/how-to-generate-an-executable-from-an-llvmmodule
+               //
+https://stackoverflow.com/questions/11657529/how-to-generate-an-executable-from-an-llvmmodule
 {
   auto TargetTriple = llvm::sys::getDefaultTargetTriple();
   llvm::InitializeAllTargetInfos();
@@ -88,8 +94,20 @@ void writeModuleToFile(
   TargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType);
   pass.run(*module);
 }
-
+*/
 int main(int argc, char* argv[]) {
+  std::string s{
+      "let c: char = '\\x03';\nconst q = '';\n const d = 'a'; const s = "
+      "'\\n';"};
+  std::vector<Token> tokens;
+  Lexer l{s};
+  Token t;
+  while ((t = l.next()).type != TOKEN_TYPE::FILE_END) {
+    std::cout << debugTokenTypes(t.type) << '\n';
+    tokens.emplace_back(t);
+  }
+  return 0;
+  /*
   if (argc != 3) return 255;
   std::string input = readFile(argv[1]);
   Parser parser{Lexer{input}};
@@ -108,4 +126,5 @@ int main(int argc, char* argv[]) {
   createMain(&context, module.get(), &builder, val);
   writeModuleToFile(module.get(), argv[2]);
   return 0;
+   */
 }
