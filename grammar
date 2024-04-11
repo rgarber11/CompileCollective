@@ -27,7 +27,7 @@ whileExpr ::= "while" expr expr
 matchExpr ::= "match" expr "{" "caseExpr" "}"
 caseExpr ::= "case" expr expr
 blockExpr ::= "{" (stmt)* "}"
-assignExpr ::= (accessExpr ".")?IDEN "=" assignExpr | orExpr
+assignExpr ::= ((accessExpr ".")?IDEN "=" assignExpr) | orExpr
 orExpr ::= andExpr ("||" andExpr)*
 andExpr ::= bitOrExpr ("&&" bitOrExpr)*
 bitOrExpr ::= xorExpr ("|" xorExpr)*
