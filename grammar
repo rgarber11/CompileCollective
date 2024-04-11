@@ -1,0 +1,47 @@
+program ::= (globals)*
+stmt ::= globals | returnStmt | yieldStmt | exprStmt | continueStmt
+globals ::= letStmt | constStmt | classStmt | implDeclaration | implStmt | typeDef
+letStmt ::= "let" IDEN ((":" type) | ((":" type)? "=" expr)) ";"
+constStmt ::= "const" IDEN (":" type)? "=" expr ";"
+classStmt ::= "class" IDEN "{"(globals)* "}" ";"
+implDeclaration ::= "impl" IDEN "{" (globals)* "}" ";"
+implStmt ::= "impl" IDEN "for" IDEN "{" (globals)* "}" ";"
+typeDef ::= "type" IDEN "=" type ";"
+type ::= sumType
+sumType ::= productType ("|" productType)*
+productType ::= listType | tupleType | optionalType | functionType | aliasType | bottomType
+listType ::= "list" "["(WHOLE|"*") "," type "]"
+tupleType ::= "(" (type ",")* type ")"
+optionalType ::= "optional" "[" type "]"
+functionType ::= "fn" "(" ((type ",")* type)? ")" "->" type
+aliasType ::= IDEN
+bottomType ::= "int" | "bool" | "char" | "float" | "void"
+returnStmt ::= "return" expr ";"
+yieldStmt ::= "yield" expr ";"
+continueStmt ::= "continue" ";"
+expr ::= assignExpr | blockExpr | ifExpr | forExpr | whileExpr | matchExpr
+ifExpr ::= "if" expr expr ("else" expr)?
+forExpr ::= "for" IDEN "in" expr expr
+whileExpr ::= "while" expr expr
+matchExpr ::= "match" expr "{" "caseExpr" "}"
+caseExpr ::= "case" expr expr
+blockExpr ::= "{" (stmt)* "}"
+assignExpr ::= (accessExpr ".")?IDEN "=" assignExpr | orExpr
+orExpr ::= andExpr ("||" andExpr)*
+andExpr ::= bitOrExpr ("&&" bitOrExpr)*
+bitOrExpr ::= xorExpr ("|" xorExpr)*
+xorExpr ::= bitAndExpr ("^" bitAndExpr)*
+bitAndExpr ::= equalityExpr ("&" equalityExpr)*
+equalityExpr ::= compExpr (("=="|"!=") compExpr)*
+compExpr ::= shiftExpr (("<"|">"|"<="|">=") shiftExpr)*
+shiftExpr ::= addExpr (("<<"|">>") addExpr)*
+addExpr ::= multExpr (("+"|"-") multExpr)*
+multExpr ::= prefixExpr (("*"|"/"|"%")* prefixExpr)*
+prefixExpr ::= "-"? accessExpr
+accessExpr ::= primary ( ("[" expr "]") | ("(" (expression ("," expression)*)? ")") | (("." IDEN)*))*;
+primary ::= "true" | "false" | "void" | IDEN | INT | CHAR | STRING | "(" expr ")"
+WHOLE ::= [1-9][0-9]*
+FLOAT ::= INT "." INT
+INT ::= [0-9]+
+STRING ::= "\"" CHAR* "\""
+CHAR ::= ord(c) >= 32 && ord(c) <= 126 && ord(c) != 92 | "\"("a"|"b"|"e"|"f"|"n"|"r"|"t"|"v"|"\"|"'"|"\""|"?"|(x[0-9][0-9]))
