@@ -40,6 +40,7 @@ multExpr ::= prefixExpr (("*"|"/"|"%")* prefixExpr)*
 prefixExpr ::= "-"? accessExpr
 accessExpr ::= primary ( ("[" expr "]") | ("(" (expression ("," expression)*)? ")") | (("." IDEN)*))*;
 primary ::= "true" | "false" | "void" | IDEN | INT | CHAR | STRING | "(" expr ")"
+IDEN ::= [A-Za-z_][A-Za-z0-9_]*
 WHOLE ::= [1-9][0-9]*
 FLOAT ::= INT "." INT
 INT ::= [0-9]+
