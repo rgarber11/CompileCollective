@@ -13,20 +13,25 @@
 #include "types.h"
 class Parser {
  private:
+  bool inImplClass = true;
+  bool requireNext(TOKEN_TYPE type);
   bool munch(TOKEN_TYPE type);
-  Environment program;
 
  public:
-  explicit Parser(Lexer lexer) : lexer(std::move(lexer)) {}
-  Parser(Parser&& parser) : lexer(parser.lexer), curr(parser.curr) {}
-  Parser(const Parser& parser) : lexer(parser.lexer), curr(parser.curr) {}
+  Environment program;
+  explicit Parser(Lexer lexer) : lexer(std::move(lexer)) { setup(); }
+  Parser(Parser&& parser)
+      : lexer(parser.lexer), curr(parser.curr), program(parser.program) {}
+  Parser(const Parser& parser)
+      : lexer(parser.lexer), curr(parser.curr), program(parser.program) {}
   ~Parser() = default;
   Environment parse();
 
  private:
+  void setup();
   Lexer lexer;
   Token curr;
-  AliasType typeDef();
+  Stmt typeDef();
   Type type();
   Type functionType();
   Type optionalType();
@@ -36,12 +41,14 @@ class Parser {
   Stmt stmt();
   Stmt returnStmt();
   Stmt yieldStmt();
-  Stmt functionStmt();
+  std::unique_ptr<Expr> functionExpr();
   Stmt exprStmt();
   Stmt implStmt();
   Stmt declarationStmt();
   Stmt classStmt();
+  std::unique_ptr<Expr> rangeExpr();
   std::unique_ptr<Expr> expr();
+  std::unique_ptr<Expr> assign();
   std::unique_ptr<Expr> orExpr();
   std::unique_ptr<Expr> andExpr();
   std::unique_ptr<Expr> bitAndExpr();
@@ -57,7 +64,10 @@ class Parser {
   std::unique_ptr<Expr> whileExpr();
   std::unique_ptr<Expr> block();
   std::unique_ptr<Expr> prefix();
+  ForConditionExpr forConditionExpr();
   Type productType();
+  Stmt globals();
+  CaseExpr caseExpr();
 };
 
 #endif  // INCLUDE_SENIORPROJECT_PARSER_H_

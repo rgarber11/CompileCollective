@@ -65,6 +65,9 @@ enum class TOKEN_TYPE {
   ARROW,
   OPTIONAL,
   LIST,
+  MOD,
+  CONTINUE,
+  VOID
 };
 std::string debugTokenTypes(TOKEN_TYPE type);
 struct Token {

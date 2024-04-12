@@ -48,6 +48,9 @@ Token Lexer::next() {
     case '/':
       type = TOKEN_TYPE::SLASH;
       break;
+    case '%':
+      type = TOKEN_TYPE::MOD;
+      break;
     case '(':
       type = TOKEN_TYPE::LEFT_PAREN;
       break;
@@ -217,6 +220,8 @@ Token Lexer::next() {
             type = TOKEN_TYPE::CASE;
           } else if (len == 5 && input.substr(pos + 1, len - 1) == "onst") {
             type = TOKEN_TYPE::CONST;
+          } else if (len == 8 && input.substr(pos + 1, len - 1) == "ontinue") {
+            type = TOKEN_TYPE::CONTINUE;
           } else if (len == 5 && input.substr(pos + 1, len - 1) == "lass") {
             type = TOKEN_TYPE::CLASS;
           }

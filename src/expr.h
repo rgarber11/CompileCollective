@@ -39,6 +39,12 @@ struct IntExpr {
   IntExpr(const IntExpr& intExpr) = default;
   IntExpr(IntExpr&& intExpr) noexcept : val(intExpr.val) {}
 };
+struct BoolExpr {
+  bool val;
+  explicit BoolExpr(bool val) : val(val) {}
+  BoolExpr(const BoolExpr& boolExpr) = default;
+  BoolExpr(BoolExpr&& boolExpr) noexcept : val(boolExpr.val) {}
+};
 struct FloatExpr {
   double val;
   explicit FloatExpr(double val) : val(val) {}
@@ -66,60 +72,32 @@ struct ImplicitTypeConvExpr {
   ImplicitTypeConvExpr(ImplicitTypeConvExpr&& implicitTypeConvExpr) noexcept;
   ~ImplicitTypeConvExpr() = default;
 };
-struct FunctionExpr {
-  std::unique_ptr<Expr> functionAccess;
-  std::vector<Expr> parameters;
-  FunctionExpr(const FunctionExpr& functionExpr);
-  FunctionExpr(FunctionExpr&& functionExpr) noexcept;
-  ~FunctionExpr() = default;
-};
 struct LiteralExpr {
   std::string name;
+  LiteralExpr() = default;
   LiteralExpr(const std::string_view name) : name(name){};
-};
-struct RangeExpr {
-  bool inclusive;
-  std::unique_ptr<Expr> from;
-  std::unique_ptr<Expr> to;
-  RangeExpr(const RangeExpr& range);
-  RangeExpr(RangeExpr&& range) noexcept;
+  ~LiteralExpr() = default;
 };
 struct ForConditionExpr {
-  RangeExpr range;
+  std::unique_ptr<Expr> expr;
   LiteralExpr var;
   ForConditionExpr() = default;
-  ForConditionExpr(const RangeExpr& range, const LiteralExpr& var)
-      : range(range), var(var){};
-  ForConditionExpr(const ForConditionExpr& for_condition_expr) = default;
-  ForConditionExpr(ForConditionExpr&& for_condition_expr) noexcept = default;
+  ForConditionExpr(const ForConditionExpr& for_condition_expr);
+  ForConditionExpr(ForConditionExpr&& for_condition_expr) noexcept;
 };
 struct CaseExpr {
   std::shared_ptr<Type> type;
   std::unique_ptr<Expr> cond;
   std::unique_ptr<Expr> body;
+  CaseExpr() = default;
   CaseExpr(const CaseExpr& caseExpr);
   CaseExpr(CaseExpr&& caseExpr) noexcept;
   ~CaseExpr() = default;
 };
-struct CaseType {
-  std::shared_ptr<Type> type;
-  std::shared_ptr<Type> condType;
-  std::unique_ptr<Expr> body;
-  CaseType(const CaseType& caseType);
-  CaseType(CaseType&& caseType) noexcept;
-  ~CaseType() = default;
-};
 struct MatchExpr {
   std::unique_ptr<Expr> cond;
-  std::variant<std::vector<CaseExpr>, std::vector<CaseType>> cases;
-  bool isTypeMatch() {
-    return std::visit(
-        [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>,
-                                std::vector<CaseType>>;
-        },
-        cases);
-  }
+  std::vector<CaseExpr> cases;
+  MatchExpr() = default;
   MatchExpr(const MatchExpr& matchExpr);
   MatchExpr(MatchExpr&& matchExpr) noexcept;
   ~MatchExpr() = default;
@@ -128,6 +106,7 @@ struct IfExpr {
   std::unique_ptr<Expr> cond;
   std::unique_ptr<Expr> thenExpr;
   std::unique_ptr<Expr> elseExpr;
+  IfExpr() = default;
   IfExpr(const IfExpr& ifExpr);
   IfExpr(IfExpr&& ifExpr) noexcept;
   ~IfExpr() = default;
@@ -135,11 +114,16 @@ struct IfExpr {
 struct BlockExpr {
   bool returns;
   bool yields;
-  std::vector<Stmt> stmts;
+  std::vector<std::unique_ptr<Stmt>> stmts;
+  BlockExpr() = default;
+  BlockExpr(const BlockExpr& blockExpr);
+  BlockExpr(BlockExpr&& blockExpr) noexcept;
+  ~BlockExpr() = default;
 };
 struct ForExpr {
-  std::unique_ptr<ForConditionExpr> expr;
+  ForConditionExpr expr;
   std::unique_ptr<Expr> body;
+  ForExpr() = default;
   ForExpr(const ForExpr& forExpr);
   ForExpr(ForExpr&& forExpr) noexcept;
   ~ForExpr() = default;
@@ -147,6 +131,7 @@ struct ForExpr {
 struct WhileExpr {
   std::unique_ptr<Expr> cond;
   std::unique_ptr<Expr> body;
+  WhileExpr() = default;
   WhileExpr(const WhileExpr& whileExpr);
   WhileExpr(WhileExpr&& whileExpr) noexcept;
   ~WhileExpr() = default;
@@ -162,17 +147,27 @@ struct GetExpr {
 };
 struct CallExpr {
   std::unique_ptr<Expr> expr;
-  std::vector<Expr> params;
+  std::vector<std::unique_ptr<Expr>> params;
   CallExpr() = default;
   CallExpr(const CallExpr& callExpr);
   CallExpr(CallExpr&& callExpr) noexcept;
   ~CallExpr() = default;
 };
+struct FunctionExpr {
+  int arity;
+  std::vector<std::pair<std::shared_ptr<Type>, std::string>> parameters;
+  std::shared_ptr<Type> returnType;
+  std::unique_ptr<Expr> action;
+  FunctionExpr() = default;
+  FunctionExpr(const FunctionExpr& functionExpr);
+  FunctionExpr(FunctionExpr&& functionExpr) noexcept;
+  ~FunctionExpr() = default;
+};
 using InnerExpr =
-    std::variant<BinaryExpr, PrefixExpr, IntExpr, FloatExpr, CharExpr,
-                 StringExpr, LiteralExpr, ForConditionExpr, RangeExpr,
-                 FunctionExpr, ImplicitTypeConvExpr, MatchExpr, IfExpr,
-                 BlockExpr, ForExpr, WhileExpr, GetExpr, CallExpr>;
+    std::variant<BinaryExpr, PrefixExpr, IntExpr, FloatExpr, BoolExpr, CharExpr,
+                 StringExpr, LiteralExpr, FunctionExpr, ImplicitTypeConvExpr,
+                 MatchExpr, IfExpr, BlockExpr, ForExpr, WhileExpr, GetExpr,
+                 CallExpr>;
 struct Expr {
   const SourceLocation sourceLocation;
   std::shared_ptr<Type> type;
@@ -190,16 +185,14 @@ struct Expr {
             return visitor->visitIntExpr(this);
           } else if (std::is_same_v<T, FloatExpr>) {
             return visitor->visitFloatExpr(this);
+          } else if (std::is_same_v<T, BoolExpr>) {
+            return visitor->visitBoolExpr(this);
           } else if (std::is_same_v<T, CharExpr>) {
             return visitor->visitCharExpr(this);
           } else if (std::is_same_v<T, StringExpr>) {
             return visitor->visitStringExpr(this);
           } else if (std::is_same_v<T, LiteralExpr>) {
             return visitor->visitLiteralExpr(this);
-          } else if (std::is_same_v<T, ForConditionExpr>) {
-            return visitor->visitForConditionExpr(this);
-          } else if (std::is_same_v<T, RangeExpr>) {
-            return visitor->visitRangeExpr(this);
           } else if (std::is_same_v<T, FunctionExpr>) {
             return visitor->visitFunctionExpr(this);
           } else if (std::is_same_v<T, ImplicitTypeConvExpr>) {
@@ -225,10 +218,11 @@ struct Expr {
   [[nodiscard]] std::unique_ptr<Expr> clone() const {
     return std::make_unique<Expr>(sourceLocation, type, innerExpr);
   }
-  static Expr makeBinary(const Token& op, const Type& token_type);
-  static Expr makePrefix(const Token& op, const Type& token_type);
-  static Expr makeInt(const Token& op, int num);
-  static Expr makeFloat(const Token& op, double num);
+  static Expr makeBinary(const Token& op, std::shared_ptr<Type> type);
+  static Expr makePrefix(const Token& op, std::shared_ptr<Type> type);
+  static Expr makeInt(const Token& op, std::shared_ptr<Type> type, int num);
+  static Expr makeFloat(const Token& op, std::shared_ptr<Type> type,
+                        double num);
   static Expr makeImplicitTypeConv(const SourceLocation& source_location,
                                    const Type& from, const Type& to);
   [[nodiscard]] BinaryExpr* getBinaryExpr() {
@@ -241,6 +235,9 @@ struct Expr {
   [[nodiscard]] FloatExpr* getFloatExpr() {
     return &std::get<FloatExpr>(innerExpr);
   }
+  [[nodiscard]] BoolExpr* getBoolExpr() {
+    return &std::get<BoolExpr>(innerExpr);
+  }
   [[nodiscard]] CharExpr* getCharExpr() {
     return &std::get<CharExpr>(innerExpr);
   }
@@ -251,12 +248,6 @@ struct Expr {
   [[nodiscard]] LiteralExpr* getLiteralExpr() {
     return &std::get<LiteralExpr>(innerExpr);
   }
-  [[nodiscard]] ForConditionExpr* getForConditionExpr() {
-    return &std::get<ForConditionExpr>(innerExpr);
-  }
-  [[nodiscard]] RangeExpr* getRangeExpr() {
-    return &std::get<RangeExpr>(innerExpr);
-  }
 
   [[nodiscard]] FunctionExpr* getFunctionExpr() {
     return &std::get<FunctionExpr>(innerExpr);
@@ -264,11 +255,11 @@ struct Expr {
   [[nodiscard]] ImplicitTypeConvExpr* getImplicitTypeConvExpr() {
     return &std::get<ImplicitTypeConvExpr>(innerExpr);
   }
-
   [[nodiscard]] MatchExpr* getMatchExpr() {
     return &std::get<MatchExpr>(innerExpr);
   }
   [[nodiscard]] IfExpr* getIfExpr() { return &std::get<IfExpr>(innerExpr); }
+
   [[nodiscard]] BlockExpr* getBlockExpr() {
     return &std::get<BlockExpr>(innerExpr);
   }
@@ -276,47 +267,55 @@ struct Expr {
   [[nodiscard]] WhileExpr* getWhileExpr() {
     return &std::get<WhileExpr>(innerExpr);
   }
-
   [[nodiscard]] GetExpr* getGetExpr() { return &std::get<GetExpr>(innerExpr); }
   [[nodiscard]] CallExpr* getCallExpr() {
     return &std::get<CallExpr>(innerExpr);
   }
+
   [[nodiscard]] int getInt() const { return std::get<IntExpr>(innerExpr).val; }
   [[nodiscard]] double getFloat() const {
     return std::get<FloatExpr>(innerExpr).val;
   }
+
   [[nodiscard]] bool isBinaryExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, BinaryExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, BinaryExpr>;
         },
         innerExpr);
   }
   [[nodiscard]] bool isPrefixExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, PrefixExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, PrefixExpr>;
         },
         innerExpr);
   }
   [[nodiscard]] bool isIntExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, IntExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, IntExpr>;
         },
         innerExpr);
   }
   [[nodiscard]] bool isFloatExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, FloatExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, FloatExpr>;
+        },
+        innerExpr);
+  }
+  [[nodiscard]] bool isBoolExpr() const {
+    return std::visit(
+        [](auto&& arg) {
+          return std::is_same_v<std::decay_t<decltype(arg)>, BoolExpr>;
         },
         innerExpr);
   }
   [[nodiscard]] bool isCharExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, CharExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, CharExpr>;
         },
         innerExpr);
   }
@@ -324,96 +323,84 @@ struct Expr {
   [[nodiscard]] bool isStringExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, StringExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, StringExpr>;
         },
         innerExpr);
   }
   [[nodiscard]] bool isLiteralExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, LiteralExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, LiteralExpr>;
         },
         innerExpr);
   }
-  [[nodiscard]] bool isForConditionExpr() const {
-    return std::visit(
-        [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, ForConditionExpr>;
-        },
-        innerExpr);
-  }
-  [[nodiscard]] bool isRangeExpr() const {
-    return std::visit(
-        [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, RangeExpr>;
-        },
-        innerExpr);
-  }
+
   [[nodiscard]] bool isFunctionExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, FunctionExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, FunctionExpr>;
         },
         innerExpr);
   }
   [[nodiscard]] bool isImplicitTypeConvExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>,
+          return std::is_same_v<std::decay_t<decltype(arg)>,
                                 ImplicitTypeConvExpr>;
         },
         innerExpr);
   }
-
   [[nodiscard]] bool isMatchExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, MatchExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, MatchExpr>;
         },
         innerExpr);
   }
   [[nodiscard]] bool isIfExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, IfExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, IfExpr>;
         },
         innerExpr);
   }
+
   [[nodiscard]] bool isBlockExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, BlockExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, BlockExpr>;
         },
         innerExpr);
   }
   [[nodiscard]] bool isForExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, ForExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, ForExpr>;
         },
         innerExpr);
   }
   [[nodiscard]] bool isWhileExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, WhileExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, WhileExpr>;
         },
         innerExpr);
   }
   [[nodiscard]] bool isGetExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, GetExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, GetExpr>;
         },
         innerExpr);
   }
   [[nodiscard]] bool isCallExpr() const {
     return std::visit(
         [](auto&& arg) {
-          return std::is_same_v<std::decay<decltype(arg)>, CallExpr>;
+          return std::is_same_v<std::decay_t<decltype(arg)>, CallExpr>;
         },
         innerExpr);
   }
+
   ~Expr() = default;
 };
 
@@ -433,15 +420,15 @@ struct Visitor {
   T _visit(Expr* expr) { return expr->accept(this); }
   virtual void enterVisitor() = 0;
   virtual void exitVisitor() = 0;
+
   virtual T visitBinaryExpr(Expr* binaryExpr) = 0;
   virtual T visitPrefixExpr(Expr* prefixExpr) = 0;
   virtual T visitIntExpr(Expr* intExpr) = 0;
   virtual T visitFloatExpr(Expr* floatExpr) = 0;
+  virtual T visitBoolExpr(Expr* boolExpr) = 0;
   virtual T visitCharExpr(Expr* charExpr) = 0;
   virtual T visitStringExpr(Expr* stringExpr) = 0;
   virtual T visitLiteralExpr(Expr* literalExpr) = 0;
-  virtual T visitForConditionExpr(Expr* forConditionExpr) = 0;
-  virtual T visitRangeExpr(Expr* rangeExpr) = 0;
   virtual T visitFunctionExpr(Expr* functionExpr) = 0;
   virtual T visitImplicitTypeConvExpr(Expr* implicitTypeConvExpr) = 0;
   virtual T visitMatchExpr(Expr* matchExpr) = 0;
@@ -449,5 +436,7 @@ struct Visitor {
   virtual T visitBlockExpr(Expr* blockExpr) = 0;
   virtual T visitForExpr(Expr* forExpr) = 0;
   virtual T visitWhileExpr(Expr* whileExpr) = 0;
+  virtual T visitGetExpr(Expr* getExpr) = 0;
+  virtual T visitCallExpr(Expr* callExpr) = 0;
 };
 #endif  // INCLUDE_SRC_EXPR_H_

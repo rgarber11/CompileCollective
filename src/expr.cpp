@@ -36,20 +36,6 @@ ImplicitTypeConvExpr::ImplicitTypeConvExpr(
       to(implicitTypeConvExpr.to),
       expr(implicitTypeConvExpr.expr ? implicitTypeConvExpr.expr->clone()
                                      : nullptr) {}
-RangeExpr::RangeExpr(const RangeExpr &range)
-    : inclusive(range.inclusive),
-      from(range.from ? range.from->clone() : nullptr),
-      to(range.to ? range.to->clone() : nullptr) {}
-RangeExpr::RangeExpr(RangeExpr &&range) noexcept
-    : inclusive(range.inclusive),
-      from(range.from ? range.from->clone() : nullptr),
-      to(range.to ? range.to->clone() : nullptr) {}
-CaseType::CaseType(const CaseType &caseType)
-    : type(caseType.type ? caseType.type->clone() : nullptr),
-      condType(caseType.condType ? caseType.condType->clone() : nullptr) {}
-CaseType::CaseType(CaseType &&caseType) noexcept
-    : type(caseType.type ? caseType.type->clone() : nullptr),
-      condType(caseType.condType ? caseType.condType->clone() : nullptr) {}
 MatchExpr::MatchExpr(const MatchExpr &matchExpr)
     : cond(matchExpr.cond ? matchExpr.cond->clone() : nullptr),
       cases(matchExpr.cases) {}
@@ -65,14 +51,10 @@ IfExpr::IfExpr(IfExpr &&ifExpr) noexcept
       thenExpr(ifExpr.thenExpr ? ifExpr.thenExpr->clone() : nullptr),
       elseExpr(ifExpr.elseExpr ? ifExpr.elseExpr->clone() : nullptr) {}
 ForExpr::ForExpr(const ForExpr &forExpr)
-    : expr(forExpr.expr ? std::make_unique<ForConditionExpr>(
-                              forExpr.expr->range, forExpr.expr->var)
-                        : nullptr),
+    : expr(forExpr.expr),
       body(forExpr.body ? forExpr.body->clone() : nullptr) {}
 ForExpr::ForExpr(ForExpr &&forExpr) noexcept
-    : expr(forExpr.expr ? std::make_unique<ForConditionExpr>(
-                              forExpr.expr->range, forExpr.expr->var)
-                        : nullptr),
+    : expr(forExpr.expr),
       body(forExpr.body ? forExpr.body->clone() : nullptr) {}
 WhileExpr::WhileExpr(const WhileExpr &whileExpr)
     : cond(whileExpr.cond ? whileExpr.cond->clone() : nullptr),
@@ -89,28 +71,37 @@ GetExpr::GetExpr(GetExpr &&getExpr) noexcept
 GetExpr::GetExpr(Expr expr, LiteralExpr name)
     : expr(expr.clone()), name(name){};
 CallExpr::CallExpr(const CallExpr &callExpr)
-    : expr(callExpr.expr ? callExpr.expr->clone() : nullptr),
-      params(callExpr.params) {}
+    : expr(callExpr.expr ? callExpr.expr->clone() : nullptr) {
+  for (const auto &i : callExpr.params) {
+    params.emplace_back(i->clone());
+  }
+}
 CallExpr::CallExpr(CallExpr &&callExpr) noexcept
-    : expr(callExpr.expr ? callExpr.expr->clone() : nullptr),
-      params(callExpr.params) {}
-Expr Expr::makeBinary(const Token &op, const Type &type) {
-  return Expr{op.sourceLocation, std::make_shared<Type>(type.clone()),
-              BinaryExpr{op}};
+    : expr(callExpr.expr ? callExpr.expr->clone() : nullptr) {
+  for (const auto &i : callExpr.params) {
+    params.emplace_back(i->clone());
+  }
 }
-Expr Expr::makePrefix(const Token &op, const Type &type) {
-  return Expr{op.sourceLocation, std::make_shared<Type>(type.clone()),
-              PrefixExpr{op}};
+ForConditionExpr::ForConditionExpr(const ForConditionExpr &for_condition_expr)
+    : expr(for_condition_expr.expr ? for_condition_expr.expr->clone()
+                                   : nullptr),
+      var(for_condition_expr.var) {}
+ForConditionExpr::ForConditionExpr(
+    ForConditionExpr &&for_condition_expr) noexcept
+    : expr(for_condition_expr.expr ? for_condition_expr.expr->clone()
+                                   : nullptr),
+      var(for_condition_expr.var) {}
+Expr Expr::makeBinary(const Token &op, std::shared_ptr<Type> type) {
+  return Expr{op.sourceLocation, type, BinaryExpr{op}};
 }
-Expr Expr::makeInt(const Token &op, int num) {
-  return Expr{op.sourceLocation,
-              std::make_shared<Type>(BottomType::INT, std::vector<Impl>{}),
-              IntExpr{num}};
+Expr Expr::makePrefix(const Token &op, std::shared_ptr<Type> type) {
+  return Expr{op.sourceLocation, type, PrefixExpr{op}};
 }
-Expr Expr::makeFloat(const Token &op, double num) {
-  return Expr{op.sourceLocation,
-              std::make_shared<Type>(BottomType::FLOAT, std::vector<Impl>{}),
-              FloatExpr{num}};
+Expr Expr::makeInt(const Token &op, std::shared_ptr<Type> type, int num) {
+  return Expr{op.sourceLocation, type, IntExpr{num}};
+}
+Expr Expr::makeFloat(const Token &op, std::shared_ptr<Type> type, double num) {
+  return Expr{op.sourceLocation, type, FloatExpr{num}};
 }
 Expr Expr::makeImplicitTypeConv(const SourceLocation &source_location,
                                 const Type &from, const Type &to) {

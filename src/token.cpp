@@ -121,6 +121,10 @@ std::string debugTokenTypes(TOKEN_TYPE type) {
       return "LIST";
     case TOKEN_TYPE::NEQUALS:
       return "NEQUALS";
+    case TOKEN_TYPE::MOD:
+      return "MOD";
+    case TOKEN_TYPE::CONTINUE:
+      return "CONTINUE";
   }
   return "";
 }
