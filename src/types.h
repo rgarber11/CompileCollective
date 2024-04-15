@@ -10,7 +10,7 @@
 #include <vector>
 struct Type;
 enum class Convert { SAME, IMPLICIT, EXPLICIT, FALSE };
-enum class BottomType { INT, CHAR, BOOL, FLOAT, VOID };
+enum class BottomType { INT, CHAR, BOOL, FLOAT, VOID, SELF };
 struct OptionalType {
   std::shared_ptr<Type> optional;
   OptionalType(std::shared_ptr<Type> optional_type);
@@ -53,7 +53,7 @@ struct StructType {
   std::vector<AliasType> types;
 };
 struct Impl {
-  std::vector<Type> includes;
+  std::vector<AliasType> includes;
 };
 using InnerType =
     std::variant<BottomType, OptionalType, TupleType, ListType, StructType,
@@ -137,6 +137,7 @@ struct Type {
   ListType* getListType() { return &std::get<ListType>(type); };
   StructType* getStructType() { return &std::get<StructType>(type); };
   SumType* getSumType() { return &std::get<SumType>(type); };
+  Impl* getImpl() { return &std::get<Impl>(type); };
   FunctionType* getFunctionType() { return &std::get<FunctionType>(type); };
   AliasType* getAliasType() { return &std::get<AliasType>(type); };
   Convert isConvertible(Type* t);

@@ -5,10 +5,14 @@
 #ifndef SENIORPROJECT_STMT_H
 #define SENIORPROJECT_STMT_H
 #include <memory>
+#include <type_traits>
 #include <vector>
 
+#include "common.h"
 #include "expr.h"
 #include "types.h"
+template <typename T>
+struct StmtVisitor;
 struct Stmt;
 struct DeclarationStmt {
   bool consted;
@@ -27,20 +31,23 @@ struct ExprStmt {
 struct ClassStmt {
   std::string name;
   std::vector<DeclarationStmt> parameters;
+  std::shared_ptr<Type> structType;
 };
 struct ImplStmt {
   std::string name;
   std::string decorating;
   std::vector<DeclarationStmt> parameters;
+  std::shared_ptr<Type> implType;
 };
 struct TypeDef {
-  std::shared_ptr<AliasType> type;
+  std::shared_ptr<Type> type;
 };
 struct ContinueStmt {};
 using InnerStmt =
     std::variant<ContinueStmt, DeclarationStmt, ReturnStmt, YieldStmt, ExprStmt,
                  ClassStmt, ImplStmt, TypeDef>;
 struct Stmt {
+  SourceLocation location;
   std::shared_ptr<Type> type;
   InnerStmt stmt;
   bool isDeclarationStmt() {
@@ -119,7 +126,7 @@ struct Stmt {
           } else if constexpr (std::is_same_v<ClassStmt, currType>) {
             return arg.name;
           } else if constexpr (std::is_same_v<TypeDef, currType>) {
-            return arg.type->alias;
+            return arg.type->getAliasType()->alias;
           } else if constexpr (std::is_same_v<ImplStmt, currType>) {
             if (arg.decorating.empty()) {
               return arg.name;
@@ -131,5 +138,55 @@ struct Stmt {
         },
         stmt);
   };
+  template <typename R>
+  R accept(StmtVisitor<R>* visitor) {
+    return std::visit(
+        [visitor, this](auto&& arg) -> R {
+          using T = std::decay_t<decltype(arg)>;
+          if (std::is_same_v<T, ContinueStmt>) {
+            return visitor->visitContinueStmt(this);
+          } else if (std::is_same_v<T, DeclarationStmt>) {
+            return visitor->visitDeclarationStmt(this);
+          } else if (std::is_same_v<T, ReturnStmt>) {
+            return visitor->visitReturnStmt(this);
+          } else if (std::is_same_v<T, YieldStmt>) {
+            return visitor->visitYieldStmt(this);
+          } else if (std::is_same_v<T, ExprStmt>) {
+            return visitor->visitExprStmt(this);
+          } else if (std::is_same_v<T, ClassStmt>) {
+            return visitor->visitClassStmt(this);
+          } else if (std::is_same_v<T, ImplStmt>) {
+            return visitor->visitImplStmt(this);
+          } else if (std::is_same_v<T, TypeDef>) {
+            return visitor->visitTypeDef(this);
+          }
+        },
+        stmt);
+  }
+};
+template <typename T>
+struct StmtVisitor {
+  T visitStmt(Stmt* stmt) {
+    enterStmtVisitor();
+    if constexpr (std::is_same_v<T, void>) {
+      stmt->accept(this);
+      exitStmtVisitor();
+    } else {
+      T ans = stmt->accept(this);
+      exitStmtVisitor();
+      return ans;
+    }
+  }
+  T _visitStmt(Stmt* stmt) { return stmt->accept(this); }
+  virtual void enterStmtVisitor() = 0;
+  virtual void exitStmtVisitor() = 0;
+  virtual T visitContinueStmt(Stmt* continueStmt) = 0;
+  virtual T visitDeclarationStmt(Stmt* declarationStmt) = 0;
+  virtual T visitReturnStmt(Stmt* returnStmt) = 0;
+  virtual T visitYieldStmt(Stmt* yieldStmt) = 0;
+  virtual T visitExprStmt(Stmt* exprStmt) = 0;
+  virtual T visitClassStmt(Stmt* classStmt) = 0;
+  virtual T visitImplStmt(Stmt* implStmt) = 0;
+  virtual T visitTypeDef(Stmt* typeDef) = 0;
 };
 #endif  // SENIORPROJECT_STMT_H

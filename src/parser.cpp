@@ -24,6 +24,8 @@ void Parser::setup() {
       std::make_shared<Type>(BottomType::FLOAT, std::vector<Impl>{});
   program.bottomTypes.voidType =
       std::make_shared<Type>(BottomType::VOID, std::vector<Impl>{});
+  program.bottomTypes.selfType =
+      std::make_shared<Type>(BottomType::SELF, std::vector<Impl>{});
 }
 bool Parser::requireNext(TOKEN_TYPE type) {
   Lexer lex = lexer;
@@ -42,7 +44,11 @@ bool Parser::munch(TOKEN_TYPE type) {
 Environment Parser::parse() {
   curr = lexer.next();
   while (curr.type != TOKEN_TYPE::FILE_END) {
-    program.members.emplace(globals());
+    Stmt global = globals();
+    if (program.members.find(global.getName()) != program.members.end()) {
+      std::cerr << "Redefinition of existing global.";
+    }
+    program.addMember(global.getName(), std::move(global));
   }
   return program;
 }
@@ -77,8 +83,9 @@ Stmt Parser::stmt() {
   } else if (curr.type == TOKEN_TYPE::CLASS) {
     temp = classStmt();
   } else if (curr.type == TOKEN_TYPE::CONTINUE) {
-    munch(TOKEN_TYPE::CONTINUE);
-    temp = Stmt{nullptr, ContinueStmt{}};
+    requireNext(TOKEN_TYPE::CONTINUE);
+    temp = Stmt{curr.sourceLocation, nullptr, ContinueStmt{}};
+    curr = lexer.next();
   } else {
     temp = exprStmt();
   }
@@ -86,7 +93,7 @@ Stmt Parser::stmt() {
   return temp;
 }
 Stmt Parser::declarationStmt() {
-  Stmt ans{nullptr, DeclarationStmt{}};
+  Stmt ans{curr.sourceLocation, nullptr, DeclarationStmt{}};
   ans.getDeclarationStmt()->consted = curr.type == TOKEN_TYPE::CONST;
   curr = lexer.next();
   requireNext(TOKEN_TYPE::IDEN);
@@ -97,7 +104,7 @@ Stmt Parser::declarationStmt() {
   if (munch(TOKEN_TYPE::EQUALS)) {
     ans.getDeclarationStmt()->val = expr();
   }
-  if (!inImplClass && ans.getDeclarationStmt()->consted &&
+  if (isImplClass != state::NORMAL && ans.getDeclarationStmt()->consted &&
       !ans.getDeclarationStmt()->val) {
     std::cerr << "Const must have definition.";
   }
@@ -107,9 +114,13 @@ Stmt Parser::declarationStmt() {
   return ans;
 }
 Stmt Parser::classStmt() {
+  state prev = isImplClass;
+  isImplClass = state::CLASS;
+  Stmt ans =
+      Stmt{curr.sourceLocation, program.bottomTypes.voidType, ClassStmt{}};
   munch(TOKEN_TYPE::CLASS);
-  inImplClass = true;
-  Stmt ans = Stmt{program.bottomTypes.voidType, ClassStmt{}};
+  ans.getClassStmt()->structType =
+      std::make_shared<Type>(Type{StructType({}), {}});
   requireNext(TOKEN_TYPE::IDEN);
   if (program.members.find(std::string{curr.text}) != program.members.end()) {
     std::cerr << "Redeclaration!\n";
@@ -119,60 +130,77 @@ Stmt Parser::classStmt() {
   while (!munch(TOKEN_TYPE::RBRACKET)) {
     ans.getClassStmt()->parameters.emplace_back(
         declarationStmt().getDeclarationStmt());
-    do {
-      ans.getClassStmt()->parameters.emplace_back(
-          declarationStmt().getDeclarationStmt());
-    } while (munch(TOKEN_TYPE::COMMA));
+    ans.getClassStmt()->structType->getStructType()->types.emplace_back(
+        AliasType{ans.getClassStmt()->parameters.back().name,
+                  ans.getClassStmt()->parameters.back().val->type});
   }
-  inImplClass = false;
+  isImplClass = prev;
   return ans;
 }
 Stmt Parser::implStmt() {
-  inImplClass = true;
+  state prev = isImplClass;
+  isImplClass = state::IMPL;
+  Stmt ans =
+      Stmt{curr.sourceLocation, program.bottomTypes.voidType, ImplStmt{}};
   munch(TOKEN_TYPE::IMPL);
   requireNext(TOKEN_TYPE::IDEN);
-  Stmt ans = Stmt{program.bottomTypes.voidType, ImplStmt{}};
   ans.getImplStmt()->name = std::string{curr.text};
   if (munch(TOKEN_TYPE::FOR)) {
     requireNext(TOKEN_TYPE::IDEN);
     ans.getImplStmt()->decorating = std::string{curr.text};
-  }
-  munch(TOKEN_TYPE::LBRACKET);
-  while (!munch(TOKEN_TYPE::RBRACKET)) {
-    ans.getImplStmt()->parameters.emplace_back(
-        declarationStmt().getDeclarationStmt());
-    do {
+    if (!program.getMember(ans.getImplStmt()->name) ||
+        !program.getMember(ans.getImplStmt()->name)->isImplStmt()) {
+      std::cerr << "Cannot have implementation before declaration of Impl\n";
+    }
+    ans.getImplStmt()->implType =
+        program.getMember(ans.getImplStmt()->name)->getImplStmt()->implType;
+    munch(TOKEN_TYPE::LBRACKET);
+    while (!munch(TOKEN_TYPE::RBRACKET)) {
       ans.getImplStmt()->parameters.emplace_back(
           declarationStmt().getDeclarationStmt());
-    } while (munch(TOKEN_TYPE::COMMA));
+    }
+  } else {
+    ans.getImplStmt()->implType = std::make_shared<Type>(Type{Impl{{}}, {}});
+    munch(TOKEN_TYPE::LBRACKET);
+    while (!munch(TOKEN_TYPE::RBRACKET)) {
+      ans.getImplStmt()->parameters.emplace_back(
+          declarationStmt().getDeclarationStmt());
+      ans.getImplStmt()->implType->getImpl()->includes.emplace_back(
+          AliasType{ans.getImplStmt()->parameters.back().name,
+                    ans.getImplStmt()->parameters.back().val->type});
+    }
   }
-  inImplClass = false;
+  isImplClass = prev;
   return ans;
 }
 Stmt Parser::yieldStmt() {
+  auto location = curr.sourceLocation;
   curr = lexer.next();
   std::unique_ptr<Expr> exp(expr());
-  return Stmt{exp->type, YieldStmt{std::move(exp)}};
+  return Stmt{location, exp->type, YieldStmt{std::move(exp)}};
 }
 Stmt Parser::returnStmt() {
+  auto location = curr.sourceLocation;
   curr = lexer.next();
   std::unique_ptr<Expr> exp(expr());
-  return Stmt{exp->type, ReturnStmt{std::move(exp)}};
+  return Stmt{location, exp->type, ReturnStmt{std::move(exp)}};
 }
 Stmt Parser::exprStmt() {
-  return Stmt{program.bottomTypes.voidType, ExprStmt{expr()}};
+  auto location = curr.sourceLocation;
+  return Stmt{location, program.bottomTypes.voidType, ExprStmt{expr()}};
 }
 
 Stmt Parser::typeDef() {
+  auto location = curr.sourceLocation;
   curr = lexer.next();
   requireNext(TOKEN_TYPE::IDEN);
   std::string name{curr.text};
   munch(TOKEN_TYPE::ASSIGN);
-  Type t = type();
-  return Stmt{program.bottomTypes.voidType,
-              TypeDef{std::make_shared<AliasType>(name, t)}};
+  return Stmt{
+      location, program.bottomTypes.voidType,
+      TypeDef{std::make_shared<Type>(Type{AliasType{name, type()}, {}})}};
 }
-Type Parser::productType() {
+std::shared_ptr<Type> Parser::productType() {
   switch (curr.type) {
     case TOKEN_TYPE::FN:
       return functionType();
@@ -182,38 +210,44 @@ Type Parser::productType() {
       return tupleType();
     case TOKEN_TYPE::OPTIONAL:
       return optionalType();
+    case TOKEN_TYPE::SELF:
+      if (isImplClass == state::NORMAL) {
+        std::cerr << "Cannot reference self outside of IMPL or Class.\n";
+        break;
+      }
+      return program.getMember("self")->type;
     case TOKEN_TYPE::IDEN:
       return bottomType();
     default:
       std::cerr << "This is not a type";
   }
 }
-Type Parser::functionType() {
+std::shared_ptr<Type> Parser::functionType() {
   munch(TOKEN_TYPE::FN);
   munch(TOKEN_TYPE::LEFT_PAREN);
-  Type ans{FunctionType{}, {}};
+  std::shared_ptr<Type> ans = std::make_shared<Type>(Type{FunctionType{}, {}});
   while (curr.type != TOKEN_TYPE::RIGHT_PAREN) {
-    ans.getFunctionType()->parameters.emplace_back(
-        std::make_shared<Type>(type()));
+    ans->getFunctionType()->parameters.emplace_back(type());
     if (curr.type != TOKEN_TYPE::RIGHT_PAREN) munch(TOKEN_TYPE::COMMA);
   }
   munch(TOKEN_TYPE::RIGHT_PAREN);
   munch(TOKEN_TYPE::ARROW);
-  ans.getFunctionType()->returner = std::make_shared<Type>(type());
+  ans->getFunctionType()->returner = type();
   return ans;
 }
-Type Parser::optionalType() {
+std::shared_ptr<Type> Parser::optionalType() {
   munch(TOKEN_TYPE::OPTIONAL);
   munch(TOKEN_TYPE::LSQUARE);
-  Type ans{OptionalType{std::make_shared<Type>(type())}, {}};
+  std::shared_ptr<Type> ans =
+      std::make_shared<Type>(Type{OptionalType{type()}, {}});
   munch(TOKEN_TYPE::RSQUARE);
-  if (ans.getOptionalType()->optional->isBottomType() &&
-      ans.getOptionalType()->optional->getBottomType() == BottomType::VOID) {
-    return {BottomType::VOID, {}};
+  if (ans->getOptionalType()->optional->isBottomType() &&
+      ans->getOptionalType()->optional->getBottomType() == BottomType::VOID) {
+    return program.bottomTypes.voidType;
   }
   return ans;
 }
-Type Parser::listType() {
+std::shared_ptr<Type> Parser::listType() {
   munch(TOKEN_TYPE::LIST);
   munch(TOKEN_TYPE::LSQUARE);
   int size;
@@ -226,15 +260,16 @@ Type Parser::listType() {
     std::cerr << "Bad INT\n";
   }
   munch(TOKEN_TYPE::COMMA);
-  Type ans{ListType{size, std::make_shared<Type>(type())}, {}};
+  std::shared_ptr<Type> ans =
+      std::make_shared<Type>(Type{ListType{size, type()}, {}});
   munch(TOKEN_TYPE::RSQUARE);
   return ans;
 }
-Type Parser::tupleType() {
+std::shared_ptr<Type> Parser::tupleType() {
   curr = lexer.next();
-  Type ans{TupleType{}, {}};
+  std::shared_ptr<Type> ans = std::make_shared<Type>(Type{TupleType{}, {}});
   while (curr.type != TOKEN_TYPE::RIGHT_PAREN) {
-    ans.getTupleType()->types.emplace_back(std::make_shared<Type>(type()));
+    ans->getTupleType()->types.emplace_back(std::make_shared<Type>(type()));
     if (curr.type != TOKEN_TYPE::RIGHT_PAREN) {
       munch(TOKEN_TYPE::COMMA);
     }
@@ -242,42 +277,49 @@ Type Parser::tupleType() {
   munch(TOKEN_TYPE::RIGHT_PAREN);
   return ans;
 }
-Type Parser::type() {
-  Type prev = productType();
+std::shared_ptr<Type> Parser::type() {
+  std::shared_ptr<Type> prev = productType();
   if (curr.type != TOKEN_TYPE::BITOR) return prev;
-  Type ans{SumType{{std::make_shared<Type>(prev)}}, {}};
+  std::shared_ptr<Type> ans = std::make_shared<Type>(Type{SumType{{prev}}, {}});
   while (curr.type == TOKEN_TYPE::BITOR) {
     curr = lexer.next();
-    Type next = productType();
-    ans.getSumType()->types.emplace_back(std::make_shared<Type>(next));
+    ans->getSumType()->types.emplace_back(productType());
   }
   return ans;
 }
-Type Parser::bottomType() {
+std::shared_ptr<Type> Parser::bottomType() {
   if (curr.text == "int") {
-    Type ans = {BottomType::INT, {}};
     curr = lexer.next();
-    return ans;
+    return program.bottomTypes.intType;
   } else if (curr.text == "float") {
-    Type ans = {BottomType::FLOAT, {}};
     curr = lexer.next();
-    return ans;
+    return program.bottomTypes.floatType;
   } else if (curr.text == "void") {
-    Type ans = {BottomType::VOID, {}};
     curr = lexer.next();
-    return ans;
+    return program.bottomTypes.voidType;
   } else if (curr.text == "char") {
-    Type ans = {BottomType::CHAR, {}};
     curr = lexer.next();
-    return ans;
+    return program.bottomTypes.charType;
   } else if (curr.text == "bool") {
-    Type ans = {BottomType::BOOL, {}};
     curr = lexer.next();
-    return ans;
+    return program.bottomTypes.boolType;
   } else {
-    Type ans = {AliasType{curr.text}, {}};
+    std::string typeText{curr.text};
     curr = lexer.next();
-    return ans;
+    if (program.getMember(typeText)) {
+      Stmt* s = program.getMember(typeText);
+      if (s->isTypeDef()) {
+        return s->getTypeDef()->type;
+      } else if (s->isClassStmt()) {
+        return s->getClassStmt()->structType;
+      } else if (s->isImplStmt()) {
+        return s->getImplStmt()->implType;
+      } else {
+        std::cerr << "Identifier is not of a valid type.\n";
+      }
+    } else {
+      return std::make_shared<Type>(Type{AliasType(typeText, nullptr), {}});
+    }
   }
 }
 std::unique_ptr<Expr> Parser::expr() {
@@ -303,7 +345,7 @@ std::unique_ptr<Expr> Parser::forExpr() {
   std::unique_ptr<Expr> ans =
       std::make_unique<Expr>(curr.sourceLocation, nullptr, ForExpr{});
   curr = lexer.next();
-  ans->getForExpr()->expr = forConditionExpr();
+  ans->getForExpr()->expr = std::move(forConditionExpr());
   ans->getForExpr()->body = expr();
   return ans;
 }
@@ -337,6 +379,8 @@ std::unique_ptr<Expr> Parser::whileExpr() {
 }
 std::unique_ptr<Expr> Parser::block() {
   curr = lexer.next();
+  Environment prev = program;
+  program = program.generateInnerEnvironment();
   std::unique_ptr<Expr> exp =
       std::make_unique<Expr>(curr.sourceLocation, nullptr, BlockExpr{});
   while (curr.type != TOKEN_TYPE::RBRACKET) {
@@ -348,6 +392,8 @@ std::unique_ptr<Expr> Parser::block() {
     }
   }
   munch(TOKEN_TYPE::RBRACKET);
+  exp->getBlockExpr()->env = std::make_unique<Environment>(program);
+  program = prev;
   return exp;
 }
 std::unique_ptr<Expr> Parser::matchExpr() {
@@ -382,7 +428,7 @@ std::unique_ptr<Expr> Parser::functionExpr() {
       std::string paramName{curr.text};
       curr = lexer.next();
       munch(TOKEN_TYPE::COLON);
-      std::shared_ptr<Type> paramType = std::make_shared<Type>(type());
+      std::shared_ptr<Type> paramType = type();
       types.emplace_back(paramType);
       exp->getFunctionExpr()->parameters.emplace_back(paramType, paramName);
     } while (munch(TOKEN_TYPE::COMMA));
@@ -713,7 +759,7 @@ std::unique_ptr<Expr> Parser::primary() {
     }
     case TOKEN_TYPE::IDEN: {
       std::unique_ptr<Expr> returner = std::make_unique<Expr>(
-          curr.sourceLocation, Type{BottomType::VOID, {}}.clone(),
+          curr.sourceLocation, program.bottomTypes.voidType,
           LiteralExpr(curr.text));
       curr = lexer.next();
       return returner;
@@ -729,6 +775,13 @@ std::unique_ptr<Expr> Parser::primary() {
           curr.sourceLocation, program.bottomTypes.boolType, BoolExpr{false});
       curr = lexer.next();
       return exp;
+    }
+    case TOKEN_TYPE::SELF: {
+      std::unique_ptr<Expr> returner = std::make_unique<Expr>(
+          curr.sourceLocation, program.bottomTypes.selfType,
+          LiteralExpr(curr.text));
+      curr = lexer.next();
+      return returner;
     }
     default:
       std::cerr << "Invalid token at: " << curr.sourceLocation.line << ":"

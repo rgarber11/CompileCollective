@@ -13,9 +13,10 @@
 #include "token.h"
 #include "types.h"
 template <typename T>
-struct Visitor;
+struct ExprVisitor;
 struct Expr;
 struct Stmt;
+struct Environment;
 struct BinaryExpr {
   std::unique_ptr<Expr> left;
   std::unique_ptr<Expr> right;
@@ -115,6 +116,7 @@ struct BlockExpr {
   bool returns;
   bool yields;
   std::vector<std::unique_ptr<Stmt>> stmts;
+  std::unique_ptr<Environment> env;
   BlockExpr() = default;
   BlockExpr(const BlockExpr& blockExpr);
   BlockExpr(BlockExpr&& blockExpr) noexcept;
@@ -173,7 +175,7 @@ struct Expr {
   std::shared_ptr<Type> type;
   InnerExpr innerExpr;
   template <typename R>
-  R accept(Visitor<R>* visitor) {
+  R accept(ExprVisitor<R>* visitor) {
     return std::visit(
         [visitor, this](auto&& arg) -> R {
           using T = std::decay_t<decltype(arg)>;
@@ -405,21 +407,21 @@ struct Expr {
 };
 
 template <typename T>
-struct Visitor {
-  T visit(Expr* expr) {
-    enterVisitor();
+struct ExprVisitor {
+  T visitExpr(Expr* expr) {
+    enterExprVisitor();
     if constexpr (std::is_same_v<T, void>) {
       expr->accept(this);
-      exitVisitor();
+      exitExprVisitor();
     } else {
       T ans = expr->accept(this);
-      exitVisitor();
+      exitExprVisitor();
       return ans;
     }
   }
-  T _visit(Expr* expr) { return expr->accept(this); }
-  virtual void enterVisitor() = 0;
-  virtual void exitVisitor() = 0;
+  T _visitExpr(Expr* expr) { return expr->accept(this); }
+  virtual void enterExprVisitor() = 0;
+  virtual void exitExprVisitor() = 0;
 
   virtual T visitBinaryExpr(Expr* binaryExpr) = 0;
   virtual T visitPrefixExpr(Expr* prefixExpr) = 0;

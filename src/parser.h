@@ -13,7 +13,8 @@
 #include "types.h"
 class Parser {
  private:
-  bool inImplClass = true;
+  enum class state { NORMAL, IMPL, CLASS };
+  state isImplClass = Parser::state::NORMAL;
   bool requireNext(TOKEN_TYPE type);
   bool munch(TOKEN_TYPE type);
 
@@ -32,12 +33,12 @@ class Parser {
   Lexer lexer;
   Token curr;
   Stmt typeDef();
-  Type type();
-  Type functionType();
-  Type optionalType();
-  Type tupleType();
-  Type listType();
-  Type bottomType();
+  std::shared_ptr<Type> type();
+  std::shared_ptr<Type> functionType();
+  std::shared_ptr<Type> optionalType();
+  std::shared_ptr<Type> tupleType();
+  std::shared_ptr<Type> listType();
+  std::shared_ptr<Type> bottomType();
   Stmt stmt();
   Stmt returnStmt();
   Stmt yieldStmt();
@@ -65,7 +66,7 @@ class Parser {
   std::unique_ptr<Expr> block();
   std::unique_ptr<Expr> prefix();
   ForConditionExpr forConditionExpr();
-  Type productType();
+  std::shared_ptr<Type> productType();
   Stmt globals();
   CaseExpr caseExpr();
 };
