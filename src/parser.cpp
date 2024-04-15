@@ -423,14 +423,25 @@ std::unique_ptr<Expr> Parser::functionExpr() {
   munch(TOKEN_TYPE::LEFT_PAREN);
   curr = lexer.next();
   std::vector<std::shared_ptr<Type>> types;
+  bool inClass = isImplClass == state::CLASS;
   while (curr.type != TOKEN_TYPE::RIGHT_PAREN) {
     do {
-      std::string paramName{curr.text};
-      curr = lexer.next();
-      munch(TOKEN_TYPE::COLON);
-      std::shared_ptr<Type> paramType = type();
-      types.emplace_back(paramType);
-      exp->getFunctionExpr()->parameters.emplace_back(paramType, paramName);
+      if (inClass && curr.type == TOKEN_TYPE::SELF) {
+        inClass = false;
+        if (curr.type == TOKEN_TYPE::SELF) {
+          types.emplace_back(program.bottomTypes.selfType);
+          exp->getFunctionExpr()->parameters.emplace_back(
+              program.bottomTypes.selfType, "self");
+        }
+      } else {
+        inClass = false;
+        std::string paramName{curr.text};
+        curr = lexer.next();
+        munch(TOKEN_TYPE::COLON);
+        std::shared_ptr<Type> paramType = type();
+        types.emplace_back(paramType);
+        exp->getFunctionExpr()->parameters.emplace_back(paramType, paramName);
+      }
     } while (munch(TOKEN_TYPE::COMMA));
     exp->getFunctionExpr()->arity = exp->getFunctionExpr()->parameters.size();
   }
@@ -777,11 +788,15 @@ std::unique_ptr<Expr> Parser::primary() {
       return exp;
     }
     case TOKEN_TYPE::SELF: {
-      std::unique_ptr<Expr> returner = std::make_unique<Expr>(
-          curr.sourceLocation, program.bottomTypes.selfType,
-          LiteralExpr(curr.text));
-      curr = lexer.next();
-      return returner;
+      if (isImplClass != state::NORMAL) {
+        std::unique_ptr<Expr> returner = std::make_unique<Expr>(
+            curr.sourceLocation, program.bottomTypes.selfType,
+            LiteralExpr(curr.text));
+        curr = lexer.next();
+        return returner;
+      } else {
+        std::cerr << "SELF cannot exist outside of an Impl or Class\n.";
+      }
     }
     default:
       std::cerr << "Invalid token at: " << curr.sourceLocation.line << ":"
