@@ -379,9 +379,10 @@ std::unique_ptr<Expr> Parser::functionExpr() {
   std::vector<std::shared_ptr<Type>> types;
   while (curr.type != TOKEN_TYPE::RIGHT_PAREN) {
     do {
-      std::shared_ptr<Type> paramType = std::make_shared<Type>(type());
       std::string paramName{curr.text};
       curr = lexer.next();
+      munch(TOKEN_TYPE::COLON);
+      std::shared_ptr<Type> paramType = std::make_shared<Type>(type());
       types.emplace_back(paramType);
       exp->getFunctionExpr()->parameters.emplace_back(paramType, paramName);
     } while (munch(TOKEN_TYPE::COMMA));
