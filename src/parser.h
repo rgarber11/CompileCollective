@@ -3,6 +3,7 @@
 #define INCLUDE_SENIORPROJECT_PARSER_H_
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "environment.h"
@@ -32,27 +33,29 @@ class Parser {
   void setup();
   Lexer lexer;
   Token curr;
-  Stmt typeDef();
+  std::optional<Stmt> typeDef();
   std::shared_ptr<Type> type();
   std::shared_ptr<Type> functionType();
   std::shared_ptr<Type> optionalType();
   std::shared_ptr<Type> tupleType();
   std::shared_ptr<Type> listType();
   std::shared_ptr<Type> bottomType();
-  Stmt stmt();
-  Stmt returnStmt();
-  Stmt yieldStmt();
+  std::optional<Stmt> stmt();
+  std::optional<Stmt> returnStmt();
+  std::optional<Stmt> yieldStmt();
   std::unique_ptr<Expr> functionExpr();
-  Stmt exprStmt();
-  Stmt implStmt();
-  Stmt declarationStmt();
-  Stmt classStmt();
+  std::optional<Stmt> exprStmt();
+  std::optional<Stmt> implStmt();
+  std::optional<Stmt> declarationStmt();
+  std::optional<Stmt> classStmt();
   std::unique_ptr<Expr> rangeExpr();
   std::unique_ptr<Expr> expr();
   std::unique_ptr<Expr> assign();
   std::unique_ptr<Expr> orExpr();
   std::unique_ptr<Expr> andExpr();
   std::unique_ptr<Expr> bitAndExpr();
+  std::unique_ptr<Expr> equateExpr();
+
   std::unique_ptr<Expr> xorExpr();
   std::unique_ptr<Expr> bitOrExpr();
   std::unique_ptr<Expr> add();
@@ -64,10 +67,11 @@ class Parser {
   std::unique_ptr<Expr> matchExpr();
   std::unique_ptr<Expr> whileExpr();
   std::unique_ptr<Expr> block();
-  std::unique_ptr<Expr> prefix();
-  ForConditionExpr forConditionExpr();
+  std::unique_ptr<Expr> negate();
+  std::unique_ptr<Expr> notExpr();
+  std::optional<Stmt> forConditionExpr();
   std::shared_ptr<Type> productType();
-  Stmt globals();
+  std::optional<Stmt> globals();
   CaseExpr caseExpr();
 };
 

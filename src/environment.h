@@ -2,6 +2,8 @@
 #ifndef SENIORPROJECT_ENVIRONMENT_H
 #define SENIORPROJECT_ENVIRONMENT_H
 #include <memory>
+#include <optional>
+#include <span>
 #include <unordered_map>
 
 #include "stmt.h"
@@ -44,6 +46,9 @@ struct Environment {
     }
     if (!prev) return nullptr;
     return prev->getMember(name);
+  }
+  Stmt* getInOrder(size_t elem) {
+    return elem < members.size() ? &members.at(order[elem]) : nullptr;
   }
 };
 

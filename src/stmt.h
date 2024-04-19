@@ -30,13 +30,13 @@ struct ExprStmt {
 };
 struct ClassStmt {
   std::string name;
-  std::vector<DeclarationStmt> parameters;
+  std::vector<Stmt> parameters;
   std::shared_ptr<Type> structType;
 };
 struct ImplStmt {
   std::string name;
   std::string decorating;
-  std::vector<DeclarationStmt> parameters;
+  std::vector<Stmt> parameters;
   std::shared_ptr<Type> implType;
 };
 struct TypeDef {

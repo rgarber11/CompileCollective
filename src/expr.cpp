@@ -22,16 +22,17 @@ PrefixExpr::PrefixExpr(const Token &opToken) : op(opToken.type) {}
 PrefixExpr::PrefixExpr(PrefixExpr &&prefixExpr) noexcept
     : expr(prefixExpr.expr ? prefixExpr.expr->clone() : nullptr),
       op(prefixExpr.op) {}
-ImplicitTypeConvExpr::ImplicitTypeConvExpr(const Type &from, const Type &to)
-    : from(from.clone()), to(to.clone()) {}
-ImplicitTypeConvExpr::ImplicitTypeConvExpr(
-    const ImplicitTypeConvExpr &implicitTypeConvExpr)
+TypeConvExpr::TypeConvExpr(bool implicit, std::shared_ptr<Type> from,
+                           std::shared_ptr<Type> to)
+    : implicit(implicit), from(from), to(to) {}
+TypeConvExpr::TypeConvExpr(std::shared_ptr<Type> from, std::shared_ptr<Type> to)
+    : from(from), to(to) {}
+TypeConvExpr::TypeConvExpr(const TypeConvExpr &implicitTypeConvExpr)
     : from(implicitTypeConvExpr.from),
       to(implicitTypeConvExpr.to),
       expr(implicitTypeConvExpr.expr ? implicitTypeConvExpr.expr->clone()
                                      : nullptr) {}
-ImplicitTypeConvExpr::ImplicitTypeConvExpr(
-    ImplicitTypeConvExpr &&implicitTypeConvExpr) noexcept
+TypeConvExpr::TypeConvExpr(TypeConvExpr &&implicitTypeConvExpr) noexcept
     : from(implicitTypeConvExpr.from),
       to(implicitTypeConvExpr.to),
       expr(implicitTypeConvExpr.expr ? implicitTypeConvExpr.expr->clone()
@@ -103,7 +104,7 @@ Expr Expr::makeInt(const Token &op, std::shared_ptr<Type> type, int num) {
 Expr Expr::makeFloat(const Token &op, std::shared_ptr<Type> type, double num) {
   return Expr{op.sourceLocation, type, FloatExpr{num}};
 }
-Expr Expr::makeImplicitTypeConv(const SourceLocation &source_location,
-                                const Type &from, const Type &to) {
-  return Expr{source_location, to.clone(), ImplicitTypeConvExpr{from, to}};
+Expr Expr::makeTypeConv(const SourceLocation &source_location,
+                        std::shared_ptr<Type> from, std::shared_ptr<Type> to) {
+  return Expr{source_location, to, TypeConvExpr{false, from, to}};
 }

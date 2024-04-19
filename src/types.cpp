@@ -31,7 +31,8 @@ AliasType::AliasType(AliasType&& alias_type) noexcept
       type(alias_type.type ? alias_type.type->clone() : nullptr) {}
 Type::Type(const Type& type_t)
     : type(type_t.type), interfaces(type_t.interfaces) {}
-Type::Type(const InnerType& type, const std::vector<Impl>& interfaces)
+Type::Type(const InnerType& type,
+           const std::vector<std::shared_ptr<Impl>>& interfaces)
     : type(type), interfaces(interfaces) {}
 Convert Type::isConvertible(Type* t) {
   if (this == t) return Convert::SAME;
@@ -91,6 +92,9 @@ Convert Type::isConvertible(Type* t) {
       case BottomType::BOOL:
         if (t->getBottomType() == BottomType::BOOL) return Convert::SAME;
         return Convert::FALSE;
+      case BottomType::SELF:
+        if (t->isStructType()) return Convert::IMPLICIT;
+        return Convert::FALSE;
     }
   } else if (this->isTupleType()) {
     if (!t->isTupleType() ||
@@ -113,8 +117,18 @@ Convert Type::isConvertible(Type* t) {
       auto ans = this->getListType()->type->isConvertible(t);
       return ans == Convert::FALSE ? Convert::FALSE : Convert::EXPLICIT;
     }
-    return this->getListType()->type->isConvertible(
-        t->getListType()->type.get());
+    if (this->getListType()->size == -1) {
+      return this->getListType()->type->isConvertible(
+          t->getListType()->type.get());
+    } else if (t->getListType()->size > this->getListType()->size) {
+      return Convert::FALSE;
+    } else {
+      return this->getListType()->type->isConvertible(
+                 t->getListType()->type.get()) == Convert::SAME
+                 ? Convert::IMPLICIT
+                 : this->getListType()->type->isConvertible(
+                       t->getListType()->type.get());
+    }
   } else if (this->isStructType()) {
     if (!t->isStructType() ||
         this->getStructType()->types.size() != t->getStructType()->types.size())

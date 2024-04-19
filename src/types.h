@@ -60,8 +60,9 @@ using InnerType =
                  SumType, FunctionType, AliasType, Impl>;
 struct Type {
   InnerType type;
-  std::vector<Impl> interfaces;
-  Type(const InnerType& type, const std::vector<Impl>& interfaces);
+  std::vector<std::shared_ptr<Impl>> interfaces;
+  Type(const InnerType& type,
+       const std::vector<std::shared_ptr<Impl>>& interfaces);
   Type(const Type& type_t);
   [[nodiscard]] std::shared_ptr<Type> clone() const {
     return std::make_shared<Type>(type, interfaces);
