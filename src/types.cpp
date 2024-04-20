@@ -1,5 +1,7 @@
 #include "types.h"
 
+#include <bit>
+#include <memory>
 #include <utility>
 OptionalType::OptionalType(std::shared_ptr<Type> type)
     : optional(std::move(type)) {}
@@ -204,3 +206,76 @@ Convert Type::isConvertible(Type* t) {
   return Convert::FALSE;
 }
 FunctionType::FunctionType() : returner(nullptr) {}
+std::shared_ptr<Type> Type::mergeTypes(std::shared_ptr<Type> a,
+                                       std::shared_ptr<Type> b) {
+  if (a == b) return a;
+  if (a->isConvertible(b.get()) == Convert::SAME ||
+      a->isConvertible(b.get()) == Convert::IMPLICIT)
+    return a;
+  if (b->isConvertible(a.get()) == Convert::SAME ||
+      b->isConvertible(a.get()) == Convert::IMPLICIT)
+    return b;
+  if (a->isSumType() && b->isSumType()) {
+    size_t aSize = a->getSumType()->types.size();
+    size_t bSize = b->getSumType()->types.size();
+    std::vector<bool> required(aSize + bSize, true);
+    for (int i = 0; i < aSize; ++i) {
+      if (!required[i]) continue;
+      for (int j = 0; j < bSize; ++j) {
+        if (!required[aSize + j]) continue;
+        if (a->getSumType()->types[i]->isConvertible(
+                b->getSumType()->types[j].get()) == Convert::SAME ||
+            a->getSumType()->types[i]->isConvertible(
+                b->getSumType()->types[j].get()) == Convert::IMPLICIT) {
+          required[aSize + j] = false;
+        }
+      }
+    }
+    for (int j = 0; j < bSize; ++j) {
+      if (!required[aSize + j]) continue;
+      for (int i = 0; i < aSize; ++i) {
+        if (!required[i]) continue;
+        if (b->getSumType()->types[j]->isConvertible(
+                a->getSumType()->types[i].get()) == Convert::SAME ||
+            b->getSumType()->types[j]->isConvertible(
+                a->getSumType()->types[i].get()) == Convert::IMPLICIT) {
+          required[i] = false;
+        }
+      }
+    }
+    auto returnType = std::make_shared<Type>(Type{SumType{}, {}});
+    for (int i = 0; i < aSize; ++i) {
+      if (!required[i]) continue;
+      returnType->getSumType()->types.emplace_back(a->getSumType()->types[i]);
+    }
+    for (int j = 0; j < bSize; ++j) {
+      if (!required[aSize + j]) continue;
+      returnType->getSumType()->types.emplace_back(b->getSumType()->types[j]);
+    }
+    return returnType;
+  } else if (a->isSumType()) {
+    for (auto& typ : a->getSumType()->types) {
+      if (typ->isConvertible(b.get()) == Convert::SAME ||
+          typ->isConvertible(b.get()) == Convert::IMPLICIT) {
+      }
+      return a;
+    }
+    return a->clone()->getSumType()->types.emplace_back(b);
+  } else if (b->isSumType()) {
+    for (auto& typ : b->getSumType()->types) {
+      if (typ->isConvertible(a.get()) == Convert::SAME ||
+          typ->isConvertible(a.get()) == Convert::IMPLICIT) {
+      }
+      return b;
+    }
+    return b->clone()->getSumType()->types.emplace_back(a);
+  } else {
+    if (a->isBottomType() && a->getBottomType() == BottomType::VOID) {
+      return std::make_shared<Type>(Type{OptionalType(b), {}});
+    }
+    if (b->isBottomType() && b->getBottomType() == BottomType::VOID) {
+      return std::make_shared<Type>(Type{OptionalType(a), {}});
+    }
+    return std::make_shared<Type>(Type{SumType({a, b}), {}});
+  }
+}

@@ -24,7 +24,9 @@ struct BinaryExpr {
   explicit BinaryExpr(const Token& opToken);
   BinaryExpr(const BinaryExpr& binaryExpr);
   BinaryExpr(BinaryExpr&& binaryExpr) noexcept;
-  ~BinaryExpr() = default;
+  BinaryExpr& operator=(const BinaryExpr& other);
+  BinaryExpr& operator=(BinaryExpr&& other) noexcept;
+  ~BinaryExpr();
 };
 struct PrefixExpr {
   std::unique_ptr<Expr> expr;
@@ -32,7 +34,9 @@ struct PrefixExpr {
   explicit PrefixExpr(const Token& opToken);
   PrefixExpr(const PrefixExpr& prefixExpr);
   PrefixExpr(PrefixExpr&& prefixExpr) noexcept;
-  ~PrefixExpr() = default;
+  PrefixExpr& operator=(const PrefixExpr& other);
+  PrefixExpr& operator=(PrefixExpr&& other) noexcept;
+  ~PrefixExpr();
 };
 struct IntExpr {
   int val;
@@ -50,7 +54,9 @@ struct StringExpr {
   std::string str;
   explicit StringExpr(const std::string_view str) : str(str) {}
   StringExpr(const StringExpr& stringExpr) = default;
-  StringExpr(StringExpr&& stringExpr) noexcept : str(stringExpr.str) {}
+  StringExpr(StringExpr&& stringExpr) noexcept : str(std::move(stringExpr.str)) {}
+  StringExpr& operator=(const StringExpr& other) = default;
+  ~StringExpr() = default;
 };
 struct TypeConvExpr {
   bool implicit;
@@ -62,7 +68,9 @@ struct TypeConvExpr {
   explicit TypeConvExpr(std::shared_ptr<Type> from, std::shared_ptr<Type> to);
   TypeConvExpr(const TypeConvExpr& implicitTypeConvExpr);
   TypeConvExpr(TypeConvExpr&& implicitTypeConvExpr) noexcept;
-  ~TypeConvExpr() = default;
+  TypeConvExpr& operator=(const TypeConvExpr& other);
+  TypeConvExpr& operator=(TypeConvExpr&& other) noexcept;
+  ~TypeConvExpr();
 };
 struct LiteralExpr {
   std::string name;
@@ -70,6 +78,8 @@ struct LiteralExpr {
   LiteralExpr(const std::string_view name) : name(name){};
   LiteralExpr(const LiteralExpr& literalExpr) = default;
   LiteralExpr(LiteralExpr&& literalExpr) noexcept = default;
+  LiteralExpr& operator=(const LiteralExpr& other) = default;
+  LiteralExpr& operator=(LiteralExpr&& other) noexcept = default;
   ~LiteralExpr() = default;
 };
 struct ForConditionExpr {
@@ -78,16 +88,20 @@ struct ForConditionExpr {
   ForConditionExpr() = default;
   ForConditionExpr(const ForConditionExpr& for_condition_expr);
   ForConditionExpr(ForConditionExpr&& for_condition_expr) noexcept;
-  ~ForConditionExpr() = default;
+  ForConditionExpr& operator=(const ForConditionExpr& other);
+  ForConditionExpr& operator=(ForConditionExpr&& other) noexcept;
+  ~ForConditionExpr();
 };
 struct CaseExpr {
   std::shared_ptr<Type> type;
-  std::unique_ptr<Expr> cond;
+  std::string cond;
   std::unique_ptr<Expr> body;
   CaseExpr() = default;
   CaseExpr(const CaseExpr& caseExpr);
   CaseExpr(CaseExpr&& caseExpr) noexcept;
-  ~CaseExpr() = default;
+  CaseExpr& operator=(const CaseExpr& other);
+  CaseExpr& operator=(CaseExpr&& other) noexcept;
+  ~CaseExpr();
 };
 struct MatchExpr {
   std::unique_ptr<Expr> cond;
@@ -95,7 +109,9 @@ struct MatchExpr {
   MatchExpr() = default;
   MatchExpr(const MatchExpr& matchExpr);
   MatchExpr(MatchExpr&& matchExpr) noexcept;
-  ~MatchExpr() = default;
+  MatchExpr& operator=(const MatchExpr& other);
+  MatchExpr& operator=(MatchExpr&& other) noexcept;
+  ~MatchExpr();
 };
 struct IfExpr {
   std::unique_ptr<Expr> cond;
@@ -104,7 +120,9 @@ struct IfExpr {
   IfExpr() = default;
   IfExpr(const IfExpr& ifExpr);
   IfExpr(IfExpr&& ifExpr) noexcept;
-  ~IfExpr() = default;
+  IfExpr& operator=(const IfExpr& other);
+  IfExpr& operator=(IfExpr&& other) noexcept;
+  ~IfExpr();
 };
 struct BlockExpr {
   bool returns;
@@ -114,7 +132,9 @@ struct BlockExpr {
   BlockExpr() = default;
   BlockExpr(const BlockExpr& blockExpr);
   BlockExpr(BlockExpr&& blockExpr) noexcept;
-  ~BlockExpr() = default;
+  BlockExpr& operator=(const BlockExpr& blockExpr);
+  BlockExpr& operator=(BlockExpr&& blockExpr) noexcept;
+  ~BlockExpr();
 };
 struct ForExpr {
   std::unique_ptr<Environment> env;
@@ -122,7 +142,9 @@ struct ForExpr {
   ForExpr() = default;
   ForExpr(const ForExpr& forExpr);
   ForExpr(ForExpr&& forExpr) noexcept;
-  ~ForExpr() = default;
+  ForExpr& operator=(const ForExpr& forExpr);
+  ForExpr& operator=(ForExpr&& forExpr) noexcept;
+  ~ForExpr();
 };
 struct WhileExpr {
   std::unique_ptr<Expr> cond;
@@ -130,16 +152,20 @@ struct WhileExpr {
   WhileExpr() = default;
   WhileExpr(const WhileExpr& whileExpr);
   WhileExpr(WhileExpr&& whileExpr) noexcept;
-  ~WhileExpr() = default;
+  WhileExpr& operator=(const WhileExpr& whileExpr);
+  WhileExpr& operator=(WhileExpr&& whileExpr) noexcept;
+  ~WhileExpr();
 };
 struct GetExpr {
   std::unique_ptr<Expr> expr;
   LiteralExpr name;
-  GetExpr() : expr(nullptr), name(""){};
+  GetExpr() : expr(nullptr), name("") {}
   GetExpr(Expr expr, LiteralExpr name);
   GetExpr(const GetExpr& getExpr);
   GetExpr(GetExpr&& getExpr) noexcept;
-  ~GetExpr() = default;
+  GetExpr& operator=(const GetExpr& getExpr);
+  GetExpr& operator=(GetExpr&& getExpr) noexcept;
+  ~GetExpr();
 };
 struct CallExpr {
   std::unique_ptr<Expr> expr;
@@ -147,7 +173,9 @@ struct CallExpr {
   CallExpr() = default;
   CallExpr(const CallExpr& callExpr);
   CallExpr(CallExpr&& callExpr) noexcept;
-  ~CallExpr() = default;
+  CallExpr& operator=(const CallExpr& callExpr);
+  CallExpr& operator=(CallExpr&& callExpr) noexcept;
+  ~CallExpr();
 };
 struct FunctionExpr {
   int arity;
@@ -157,16 +185,19 @@ struct FunctionExpr {
   FunctionExpr() = default;
   FunctionExpr(const FunctionExpr& functionExpr);
   FunctionExpr(FunctionExpr&& functionExpr) noexcept;
-  ~FunctionExpr() = default;
+  FunctionExpr& operator=(const FunctionExpr& functionExpr);
+  FunctionExpr& operator=(FunctionExpr&& functionExpr) noexcept;
+  ~FunctionExpr();
 };
 using InnerExpr =
     std::variant<BinaryExpr, PrefixExpr, IntExpr, FloatExpr, BoolExpr, CharExpr,
                  StringExpr, LiteralExpr, FunctionExpr, TypeConvExpr, MatchExpr,
                  IfExpr, BlockExpr, ForExpr, WhileExpr, GetExpr, CallExpr>;
 struct Expr {
-  const SourceLocation sourceLocation;
+  SourceLocation sourceLocation;
   std::shared_ptr<Type> type;
   InnerExpr innerExpr;
+  void accept(const InnerExpr& inner_expr) { this->innerExpr = inner_expr; }
   template <typename R>
   R accept(ExprVisitor<R>* visitor) {
     return std::visit(
@@ -210,7 +241,7 @@ struct Expr {
         },
         innerExpr);
   }
-  [[nodiscard]] std::unique_ptr<Expr> clone() const {
+  [[nodiscard]] std::unique_ptr<Expr> clone() const noexcept {
     return std::make_unique<Expr>(sourceLocation, type, innerExpr);
   }
   static Expr makeBinary(const Token& op, std::shared_ptr<Type> type);
@@ -396,7 +427,11 @@ struct Expr {
         innerExpr);
   }
 
-  ~Expr() = default;
+  Expr() = default;
+  Expr(const Expr& expr);
+  Expr(Expr&& expr) noexcept;
+  Expr(const SourceLocation& source_location, std::shared_ptr<Type> type, const InnerExpr& inner_expr);
+  ~Expr();
 };
 
 template <typename T>

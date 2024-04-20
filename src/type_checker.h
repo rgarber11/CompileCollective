@@ -7,6 +7,7 @@
 
 #include "environment.h"
 #include "expr.h"
+#include "parser.h"
 #include "stmt.h"
 #include "token.h"
 #include "types.h"
@@ -16,7 +17,10 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
   void visitDeclarationStmt(Stmt* stmt) override {
     if (stmt->getDeclarationStmt()->val) {
       _visitExpr(stmt->getDeclarationStmt()->val.get());
-
+      if (stmt->type->isAliasType() && !stmt->type->getAliasType()->type) {
+        stmt->type =
+            program->getMember(stmt->type->getAliasType()->alias)->type;
+      }
       if (!stmt->type) {
         stmt->type = stmt->getDeclarationStmt()->val->type;
       } else {
@@ -181,12 +185,12 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
     switch (expr2->getPrefixExpr()->op) {
       case TOKEN_TYPE::MINUS:
         if (expr2->getPrefixExpr()->expr->isIntExpr()) {
-          std::get<IntExpr>(expr2->innerExpr) =
+          expr2->innerExpr =
               IntExpr{-1 * expr2->getPrefixExpr()->expr->getInt()};
           expr2->type = program->bottomTypes.intType;
           return expr2;
         } else if (expr2->getPrefixExpr()->expr->isFloatExpr()) {
-          std::get<FloatExpr>(expr2->innerExpr) =
+          expr2->innerExpr =
               FloatExpr(-1 * expr2->getPrefixExpr()->expr->getFloatExpr()->val);
           expr2->type = program->bottomTypes.floatType;
           return expr2;
@@ -199,12 +203,11 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
         break;
       case TOKEN_TYPE::NOT:
         if (expr2->getPrefixExpr()->expr->isIntExpr()) {
-          std::get<IntExpr>(expr2->innerExpr) =
-              IntExpr{~expr2->getPrefixExpr()->expr->getInt()};
+          expr2->innerExpr = IntExpr{~expr2->getPrefixExpr()->expr->getInt()};
           expr2->type = program->bottomTypes.intType;
           return expr2;
         } else if (expr2->getPrefixExpr()->expr->isBoolExpr()) {
-          std::get<BoolExpr>(expr2->innerExpr) =
+          expr2->innerExpr =
               BoolExpr(!expr2->getPrefixExpr()->expr->getBoolExpr()->val);
           expr2->type = program->bottomTypes.boolType;
           return expr2;
@@ -222,7 +225,9 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
   Expr* visitTypeConvExpr(Expr* expr) override { return expr; }
   Expr* visitLiteralExpr(Expr* literalExpr) override {
     literalExpr->type =
-        program->getMember(literalExpr->getLiteralExpr()->name)->type;
+        program->getMember(literalExpr->getLiteralExpr()->name)
+            ? program->getMember(literalExpr->getLiteralExpr()->name)->type
+            : nullptr;
     return literalExpr;
   }
   void enterExprVisitor() override {}
@@ -296,6 +301,7 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
       blockExpr->type = program->bottomTypes.voidType;
       return blockExpr;
     }
+    return blockExpr;
   }
   Expr* visitForExpr(Expr* forExpr) override {
     for (int i = 0; i < forExpr->getForExpr()->env->members.size(); ++i) {
@@ -327,7 +333,58 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
   }
   Expr* visitCallExpr(Expr* callExpr) override {
     _visitExpr(callExpr->getCallExpr()->expr.get());
-    if (callExpr->getCallExpr()->expr->type->isFunctionType()) {
+    if (callExpr->getCallExpr()->expr->isLiteralExpr() &&
+        callExpr->getCallExpr()->expr->getLiteralExpr()->name == "convert") {
+      if (callExpr->getCallExpr()->params.size() != 2 ||
+          !callExpr->getCallExpr()->params[0]->isLiteralExpr())
+        return nullptr;
+      Environment getType =
+          Parser(
+              Lexer(callExpr->getCallExpr()->params[0]->getLiteralExpr()->name),
+              program->generateInnerEnvironment())
+              .parse(Parser::parser::TYPE);
+      auto explicitType =
+          getType.getMember("$TypeCheckerName")->getTypeDef()->type;
+      _visitExpr(callExpr->getCallExpr()->params[1].get());
+      if (callExpr->getCallExpr()->params[1]->type->isConvertible(
+              explicitType.get()) == Convert::FALSE)
+        return nullptr;
+      auto storage = std::move(callExpr->getCallExpr()->params[1]);
+      auto typeConv = std::make_unique<Expr>(
+          Expr{callExpr->sourceLocation, explicitType,
+               TypeConvExpr{false, storage->type, explicitType}});
+      typeConv->getTypeConvExpr()->expr = std::move(storage);
+      callExpr->innerExpr = std::move(typeConv->innerExpr);
+
+    } else if (callExpr->getCallExpr()->expr->type->isStructType()) {
+      for (int i = 0; i < callExpr->getCallExpr()->params.size(); ++i) {
+        Expr* expr = callExpr->getCallExpr()->params[i].get();
+        _visitExpr(expr);
+        switch (callExpr->getCallExpr()
+                    ->expr->type->getStructType()
+                    ->types[i]
+                    .type->isConvertible(expr->type.get())) {
+          case Convert::SAME:
+            break;
+          case Convert::IMPLICIT: {
+            std::shared_ptr<Type> newType = callExpr->getCallExpr()
+                                                ->expr->type->getFunctionType()
+                                                ->parameters[i];
+            auto typeConv =
+                std::make_unique<Expr>(expr->sourceLocation, newType,
+                                       TypeConvExpr{true, expr->type, newType});
+            typeConv->getTypeConvExpr()->expr =
+                std::move(callExpr->getCallExpr()->params[i]);
+            callExpr->getCallExpr()->params[i] = std::move(typeConv);
+            break;
+          }
+          case Convert::EXPLICIT:
+          case Convert::FALSE:
+            return nullptr;
+        }
+      }
+      callExpr->type = callExpr->getCallExpr()->expr->type;
+    } else if (callExpr->getCallExpr()->expr->type->isFunctionType()) {
       if (callExpr->getCallExpr()
               ->expr->type->getFunctionType()
               ->parameters.size() != callExpr->getCallExpr()->params.size()) {

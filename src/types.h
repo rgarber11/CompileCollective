@@ -142,5 +142,7 @@ struct Type {
   FunctionType* getFunctionType() { return &std::get<FunctionType>(type); };
   AliasType* getAliasType() { return &std::get<AliasType>(type); };
   Convert isConvertible(Type* t);
+  static std::shared_ptr<Type> mergeTypes(std::shared_ptr<Type> a,
+                                          std::shared_ptr<Type> b);
 };
 #endif  // SENIORPROJECT_TYPES_H

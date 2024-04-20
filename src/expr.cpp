@@ -2,7 +2,8 @@
 #include "expr.h"
 
 #include <memory>
-
+#include "environment.h"
+#include "stmt.h"
 #include "token.h"
 #include "types.h"
 
@@ -35,7 +36,7 @@ TypeConvExpr::TypeConvExpr(const TypeConvExpr &implicitTypeConvExpr)
 TypeConvExpr::TypeConvExpr(TypeConvExpr &&implicitTypeConvExpr) noexcept
     : from(implicitTypeConvExpr.from),
       to(implicitTypeConvExpr.to),
-      expr(implicitTypeConvExpr.expr ? implicitTypeConvExpr.expr->clone()
+      expr(implicitTypeConvExpr.expr ? std::move(implicitTypeConvExpr.expr)
                                      : nullptr) {}
 MatchExpr::MatchExpr(const MatchExpr &matchExpr)
     : cond(matchExpr.cond ? matchExpr.cond->clone() : nullptr),
@@ -52,10 +53,9 @@ IfExpr::IfExpr(IfExpr &&ifExpr) noexcept
       thenExpr(ifExpr.thenExpr ? ifExpr.thenExpr->clone() : nullptr),
       elseExpr(ifExpr.elseExpr ? ifExpr.elseExpr->clone() : nullptr) {}
 ForExpr::ForExpr(const ForExpr &forExpr)
-    : expr(forExpr.expr),
-      body(forExpr.body ? forExpr.body->clone() : nullptr) {}
+    : env(nullptr), body(forExpr.body ? forExpr.body->clone() : nullptr) {}
 ForExpr::ForExpr(ForExpr &&forExpr) noexcept
-    : expr(forExpr.expr),
+    : env(forExpr.env ? std::move(forExpr.env) : nullptr),
       body(forExpr.body ? forExpr.body->clone() : nullptr) {}
 WhileExpr::WhileExpr(const WhileExpr &whileExpr)
     : cond(whileExpr.cond ? whileExpr.cond->clone() : nullptr),
@@ -108,3 +108,34 @@ Expr Expr::makeTypeConv(const SourceLocation &source_location,
                         std::shared_ptr<Type> from, std::shared_ptr<Type> to) {
   return Expr{source_location, to, TypeConvExpr{false, from, to}};
 }
+ForExpr::~ForExpr() = default;
+BlockExpr::~BlockExpr() = default;
+FunctionExpr::~FunctionExpr() = default;
+BlockExpr::BlockExpr(const BlockExpr &blockExpr) : returns(blockExpr.returns), yields(blockExpr.yields), env(blockExpr.env ? blockExpr.env->clone() : nullptr){
+  for(auto& stmt : blockExpr.stmts) {
+    stmts.emplace_back(std::move(stmt->clone()));
+  }
+}
+BlockExpr::BlockExpr(BlockExpr &&blockExpr) noexcept: returns(blockExpr.returns), yields(blockExpr.yields), env(std::move(blockExpr.env)){
+  for(auto& stmt : blockExpr.stmts) {
+    stmts.push_back(std::move(stmt));
+  }
+}
+Expr::Expr(const Expr& expr) = default;
+Expr::Expr(Expr&& expr) noexcept = default;
+Expr::Expr(const SourceLocation& source_location, std::shared_ptr<Type> type, const InnerExpr& inner_expr) : sourceLocation(source_location), type(std::move(type)), innerExpr(inner_expr) {}
+Expr::~Expr() = default;
+FunctionExpr::FunctionExpr(const FunctionExpr& functionExpr) : arity(functionExpr.arity), parameters(functionExpr.parameters->clone()), returnType(functionExpr.returnType), action(functionExpr.action->clone()) {}
+FunctionExpr::FunctionExpr(FunctionExpr&& functionExpr) noexcept = default;
+IfExpr::~IfExpr() = default;
+CaseExpr::CaseExpr(const CaseExpr& caseExpr) : type(caseExpr.type), cond(caseExpr.cond), body(caseExpr.body->clone()) {}
+CaseExpr::CaseExpr(CaseExpr&& caseExpr) noexcept : type(std::move(caseExpr.type)), cond(std::move(caseExpr.cond)), body(std::move(caseExpr.body)) {}
+CaseExpr::~CaseExpr() = default;
+TypeConvExpr::~TypeConvExpr() = default;
+BinaryExpr::~BinaryExpr() = default;
+PrefixExpr::~PrefixExpr() = default;
+GetExpr::~GetExpr() = default;
+CallExpr::~CallExpr() = default;
+WhileExpr::~WhileExpr() = default;
+MatchExpr::~MatchExpr() = default;
+ForConditionExpr::~ForConditionExpr() = default;

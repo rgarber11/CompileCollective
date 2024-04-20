@@ -45,17 +45,29 @@ bool Parser::munch(TOKEN_TYPE type) {
   curr = lexer.next();
   return true;
 }
-Environment Parser::parse() {
+Environment Parser::parse(Parser::parser is) {
   curr = lexer.next();
-  while (curr.type != TOKEN_TYPE::FILE_END) {
-    auto global = globals();
-    if (!global) continue;
-    if (program.members.find(global->getName()) != program.members.end()) {
-      std::cerr << "Redefinition of existing global.";
+  if (is == parser::PROGRAM) {
+    while (curr.type != TOKEN_TYPE::FILE_END) {
+      auto global = globals();
+      if (!global) continue;
+      if (program.members.find(global->getName()) != program.members.end()) {
+        std::cerr << "Redefinition of existing global.";
+      }
+      program.addMember(global->getName(), std::move(global.value()));
     }
-    program.addMember(global->getName(), std::move(global.value()));
+    return program;
+  } else if (is == parser::TYPE) {
+    program.addMember("$TypeCheckerType",
+                      Stmt{curr.sourceLocation, program.bottomTypes.voidType,
+                           TypeDef{type()}});
+    return program;
+  } else {
+    program.addMember("$TypeCheckerExpr",
+                      Stmt{curr.sourceLocation, program.bottomTypes.voidType,
+                           ExprStmt{expr()}});
+    return program;
   }
-  return program;
 }
 std::optional<Stmt> Parser::globals() {
   std::optional<Stmt> temp;
@@ -247,7 +259,7 @@ std::shared_ptr<Type> Parser::productType() {
         std::cerr << "Cannot reference self outside of IMPL or Class.\n";
         break;
       }
-      return program.getMember("self")->type;
+      return program.bottomTypes.selfType;
     case TOKEN_TYPE::IDEN:
       return bottomType();
     default:
@@ -450,8 +462,11 @@ std::unique_ptr<Expr> Parser::matchExpr() {
 CaseExpr Parser::caseExpr() {
   munch(TOKEN_TYPE::CASE);
   CaseExpr ans{};
-  ans.cond = expr();
-  munch(TOKEN_TYPE::ARROW);
+  ans.cond = "";
+  while (!munch(TOKEN_TYPE::ARROW)) {
+    ans.cond.append(curr.text);
+    curr = lexer.next();
+  }
   ans.body = expr();
   ans.type = ans.body->type;
   return ans;
@@ -649,33 +664,50 @@ std::unique_ptr<Expr> Parser::negate() {
   }
 }
 std::unique_ptr<Expr> Parser::access() {
-  std::unique_ptr<Expr> expr = primary();
+  std::unique_ptr<Expr> exp = primary();
+  if (exp->isLiteralExpr() && exp->getLiteralExpr()->name == "convert") {
+    auto typeHolder = std::make_unique<Expr>(
+        Expr{curr.sourceLocation, nullptr, LiteralExpr{curr.text}});
+    curr = lexer.next();
+    while (!munch(TOKEN_TYPE::COMMA)) {
+      if (curr.type == TOKEN_TYPE::FILE_END) return nullptr;
+      typeHolder->getLiteralExpr()->name.append(curr.text);
+      curr = lexer.next();
+    }
+    auto converter =
+        std::make_unique<Expr>(Expr{exp->sourceLocation, nullptr, CallExpr{}});
+    converter->getCallExpr()->expr = std::move(exp);
+    converter->getCallExpr()->params.emplace_back(std::move(typeHolder));
+    converter->getCallExpr()->params.emplace_back(std::move(expr()));
+    munch(TOKEN_TYPE::RIGHT_PAREN);
+    return converter;
+  }
   for (;;) {
     if (curr.type == TOKEN_TYPE::LEFT_PAREN) {
       std::unique_ptr<Expr> func =
           std::make_unique<Expr>(curr.sourceLocation, nullptr, CallExpr{});
-      func->getCallExpr()->expr = std::move(expr);
+      func->getCallExpr()->expr = std::move(exp);
       curr = lexer.next();
       if (curr.type != TOKEN_TYPE::RIGHT_PAREN) {
         do {
-          func->getCallExpr()->params.emplace_back(this->expr().release());
+          func->getCallExpr()->params.emplace_back(expr());
         } while (curr.type == TOKEN_TYPE::COMMA);
       }
-      expr = std::move(func);
+      exp = std::move(func);
       curr = lexer.next();
     } else if (curr.type == TOKEN_TYPE::DOT) {
       requireNext(TOKEN_TYPE::IDEN);
       std::unique_ptr<Expr> getter =
           std::make_unique<Expr>(curr.sourceLocation, nullptr, GetExpr{});
-      getter->getGetExpr()->expr = std::move(expr);
+      getter->getGetExpr()->expr = std::move(exp);
       getter->getGetExpr()->name.name = curr.text;
-      expr = std::move(getter);
+      exp = std::move(getter);
       curr = lexer.next();
     } else {
       break;
     }
   }
-  return expr;
+  return exp;
 }
 std::string fixer(const std::string_view orig) {
   const std::string_view no_quotes = orig.substr(1, orig.size() - 1);

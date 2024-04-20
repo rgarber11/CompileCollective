@@ -18,6 +18,12 @@ struct DeclarationStmt {
   bool consted;
   std::string name;
   std::unique_ptr<Expr> val;
+  DeclarationStmt() = default;
+  DeclarationStmt(const DeclarationStmt& declaration_stmt);
+  DeclarationStmt(DeclarationStmt&& declaration_stmt) noexcept;
+  DeclarationStmt& operator=(DeclarationStmt&& other) noexcept;
+  DeclarationStmt& operator=(const DeclarationStmt& other);
+  ~DeclarationStmt();
 };
 struct ReturnStmt {
   std::unique_ptr<Expr> val;
@@ -32,12 +38,24 @@ struct ClassStmt {
   std::string name;
   std::vector<Stmt> parameters;
   std::shared_ptr<Type> structType;
+  ClassStmt() = default;
+  ClassStmt(const ClassStmt& class_stmt);
+  ClassStmt(ClassStmt&& class_stmt) noexcept;
+  ClassStmt& operator=(const ClassStmt& other);
+  ClassStmt& operator=(ClassStmt&& other) noexcept;
+  ~ClassStmt();
 };
 struct ImplStmt {
   std::string name;
   std::string decorating;
   std::vector<Stmt> parameters;
   std::shared_ptr<Type> implType;
+  ImplStmt() = default;
+  ImplStmt(const ImplStmt& impl_stmt);
+  ImplStmt(ImplStmt&& impl_stmt) noexcept;
+  ImplStmt& operator=(const ImplStmt& other);
+  ImplStmt& operator=(ImplStmt&& other) noexcept;
+  ~ImplStmt();
 };
 struct TypeDef {
   std::shared_ptr<Type> type;
@@ -50,6 +68,13 @@ struct Stmt {
   SourceLocation location;
   std::shared_ptr<Type> type;
   InnerStmt stmt;
+  [[nodiscard]] std::unique_ptr<Stmt> clone() const {
+    return std::make_unique<Stmt>(*this);
+  }
+  Stmt() = default;
+  Stmt(const Stmt& stmt);
+  Stmt(Stmt&& stmt) noexcept;
+  ~Stmt();
   bool isDeclarationStmt() {
     return std::visit(
         [](auto&& arg) {

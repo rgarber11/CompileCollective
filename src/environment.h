@@ -50,6 +50,9 @@ struct Environment {
   Stmt* getInOrder(size_t elem) {
     return elem < members.size() ? &members.at(order[elem]) : nullptr;
   }
+  std::unique_ptr<Environment> clone() {
+    return std::make_unique<Environment>(this);
+  }
 };
 
 #endif  // SENIORPROJECT_ENVIRONMENT_H

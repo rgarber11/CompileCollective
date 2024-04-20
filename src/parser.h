@@ -20,14 +20,17 @@ class Parser {
   bool munch(TOKEN_TYPE type);
 
  public:
+  enum class parser { PROGRAM, EXPR, TYPE };
   Environment program;
   explicit Parser(Lexer lexer) : lexer(std::move(lexer)) { setup(); }
+  Parser(Lexer lexer, Environment program)
+      : program(program), lexer(std::move(lexer)){};
   Parser(Parser&& parser)
-      : lexer(parser.lexer), curr(parser.curr), program(parser.program) {}
+      : program(parser.program), lexer(parser.lexer), curr(parser.curr) {}
   Parser(const Parser& parser)
-      : lexer(parser.lexer), curr(parser.curr), program(parser.program) {}
+      : program(parser.program), lexer(parser.lexer), curr(parser.curr) {}
   ~Parser() = default;
-  Environment parse();
+  Environment parse(parser is = Parser::parser::PROGRAM);
 
  private:
   void setup();
