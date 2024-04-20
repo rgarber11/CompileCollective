@@ -7,6 +7,7 @@
 #include "token.h"
 #include "types.h"
 
+// Copy and contructor operations
 BinaryExpr::BinaryExpr(const Token &opToken) : op(opToken.type) {}
 BinaryExpr::BinaryExpr(const BinaryExpr &binaryExpr)
     : left(binaryExpr.left ? binaryExpr.left->clone() : nullptr),
@@ -73,12 +74,14 @@ GetExpr::GetExpr(Expr expr, LiteralExpr name)
     : expr(expr.clone()), name(name){};
 CallExpr::CallExpr(const CallExpr &callExpr)
     : expr(callExpr.expr ? callExpr.expr->clone() : nullptr) {
+  // Copy all parameters
   for (const auto &i : callExpr.params) {
     params.emplace_back(i->clone());
   }
 }
 CallExpr::CallExpr(CallExpr &&callExpr) noexcept
     : expr(callExpr.expr ? callExpr.expr->clone() : nullptr) {
+  // Copy all parameters
   for (const auto &i : callExpr.params) {
     params.emplace_back(i->clone());
   }
@@ -92,6 +95,7 @@ ForConditionExpr::ForConditionExpr(
     : expr(for_condition_expr.expr ? for_condition_expr.expr->clone()
                                    : nullptr),
       var(for_condition_expr.var) {}
+// Make expressions of various types
 Expr Expr::makeBinary(const Token &op, std::shared_ptr<Type> type) {
   return Expr{op.sourceLocation, type, BinaryExpr{op}};
 }
@@ -108,19 +112,24 @@ Expr Expr::makeTypeConv(const SourceLocation &source_location,
                         std::shared_ptr<Type> from, std::shared_ptr<Type> to) {
   return Expr{source_location, to, TypeConvExpr{false, from, to}};
 }
+// Destructors (default)
 ForExpr::~ForExpr() = default;
 BlockExpr::~BlockExpr() = default;
 FunctionExpr::~FunctionExpr() = default;
+// Copy and contructor operations
 BlockExpr::BlockExpr(const BlockExpr &blockExpr) : returns(blockExpr.returns), yields(blockExpr.yields), env(blockExpr.env ? blockExpr.env->clone() : nullptr){
+  // Copy all statements
   for(auto& stmt : blockExpr.stmts) {
     stmts.emplace_back(std::move(stmt->clone()));
   }
 }
 BlockExpr::BlockExpr(BlockExpr &&blockExpr) noexcept: returns(blockExpr.returns), yields(blockExpr.yields), env(std::move(blockExpr.env)){
+  // Copy all statements
   for(auto& stmt : blockExpr.stmts) {
     stmts.push_back(std::move(stmt));
   }
 }
+// Copy, destructor, and constructor operations (default or no implementations)
 Expr::Expr(const Expr& expr) = default;
 Expr::Expr(Expr&& expr) noexcept = default;
 Expr::Expr(const SourceLocation& source_location, std::shared_ptr<Type> type, const InnerExpr& inner_expr) : sourceLocation(source_location), type(std::move(type)), innerExpr(inner_expr) {}
