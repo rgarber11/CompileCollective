@@ -350,12 +350,10 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
               explicitType.get()) == Convert::FALSE)
         return nullptr;
       auto storage = std::move(callExpr->getCallExpr()->params[1]);
-      auto typeConv = std::make_unique<Expr>(
-          Expr{callExpr->sourceLocation, explicitType,
-               TypeConvExpr{false, storage->type, explicitType}});
-      typeConv->getTypeConvExpr()->expr = std::move(storage);
-      callExpr->innerExpr = std::move(typeConv->innerExpr);
-
+      auto typeConv = TypeConvExpr{false, storage->type, explicitType};
+      typeConv.expr = std::move(storage);
+      callExpr->innerExpr = std::move(typeConv);
+      return callExpr;
     } else if (callExpr->getCallExpr()->expr->type->isStructType()) {
       for (int i = 0; i < callExpr->getCallExpr()->params.size(); ++i) {
         Expr* expr = callExpr->getCallExpr()->params[i].get();

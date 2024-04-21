@@ -54,8 +54,10 @@ struct StringExpr {
   std::string str;
   explicit StringExpr(const std::string_view str) : str(str) {}
   StringExpr(const StringExpr& stringExpr) = default;
-  StringExpr(StringExpr&& stringExpr) noexcept : str(std::move(stringExpr.str)) {}
+  StringExpr(StringExpr&& stringExpr) noexcept
+      : str(std::move(stringExpr.str)) {}
   StringExpr& operator=(const StringExpr& other) = default;
+  StringExpr& operator=(StringExpr&& other) = default;
   ~StringExpr() = default;
 };
 struct TypeConvExpr {
@@ -427,10 +429,10 @@ struct Expr {
         innerExpr);
   }
 
-  Expr() = default;
   Expr(const Expr& expr);
   Expr(Expr&& expr) noexcept;
-  Expr(const SourceLocation& source_location, std::shared_ptr<Type> type, const InnerExpr& inner_expr);
+  Expr(const SourceLocation& source_location, std::shared_ptr<Type> type,
+       const InnerExpr& inner_expr);
   ~Expr();
 };
 

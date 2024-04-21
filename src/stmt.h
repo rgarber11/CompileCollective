@@ -27,12 +27,30 @@ struct DeclarationStmt {
 };
 struct ReturnStmt {
   std::unique_ptr<Expr> val;
+  ReturnStmt() = default;
+  ReturnStmt(const ReturnStmt& return_stmt);
+  ReturnStmt(ReturnStmt&& return_stmt) noexcept = default;
+  ReturnStmt& operator=(ReturnStmt&& other) noexcept = default;
+  ReturnStmt& operator=(const ReturnStmt& other);
+  ~ReturnStmt() = default;
 };
 struct YieldStmt {
   std::unique_ptr<Expr> val;
+  YieldStmt() = default;
+  YieldStmt(const YieldStmt& yield_stmt);
+  YieldStmt(YieldStmt&& yield_stmt) noexcept = default;
+  YieldStmt& operator=(YieldStmt&& other) noexcept = default;
+  YieldStmt& operator=(const YieldStmt& other);
+  ~YieldStmt() = default;
 };
 struct ExprStmt {
   std::unique_ptr<Expr> val;
+  ExprStmt() = default;
+  ExprStmt(const ExprStmt& yield_stmt);
+  ExprStmt(ExprStmt&& yield_stmt) noexcept = default;
+  ExprStmt& operator=(ExprStmt&& other) noexcept = default;
+  ExprStmt& operator=(const ExprStmt& other);
+  ~ExprStmt() = default;
 };
 struct ClassStmt {
   std::string name;
@@ -74,6 +92,8 @@ struct Stmt {
   Stmt() = default;
   Stmt(const Stmt& stmt);
   Stmt(Stmt&& stmt) noexcept;
+  Stmt& operator=(const Stmt& other);
+  Stmt& operator=(Stmt&& other) noexcept;
   ~Stmt();
   bool isDeclarationStmt() {
     return std::visit(
