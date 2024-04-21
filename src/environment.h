@@ -9,8 +9,11 @@
 #include "stmt.h"
 #include "types.h"
 
+// Collection of environment information
 struct Environment {
+  // Possible redeclaration states
   enum class REDECLARATION_STATES { UNIQUE, ALIAS, REDECLARATION };
+  // Collection of pointers to primary types
   struct BottomTypes {
     std::shared_ptr<Type> voidType;
     std::shared_ptr<Type> intType;
@@ -23,14 +26,17 @@ struct Environment {
   BottomTypes bottomTypes;
   std::unordered_map<std::string, Stmt> members;
   std::vector<std::string> order;
+  // Return an environment object
   Environment generateInnerEnvironment() {
     return Environment{this, this->bottomTypes,
                        std::unordered_map<std::string, Stmt>{}};
   }
+  // Add a name to members and order
   void addMember(std::string name, Stmt environ) {
     members.emplace(name, environ);
     order.emplace_back(name);
   }
+  // Return the appropriate redeclaration state
   REDECLARATION_STATES isRedeclaration(const std::string& name) {
     if (members.find(name) != members.end()) {
       return REDECLARATION_STATES::REDECLARATION;
@@ -40,6 +46,7 @@ struct Environment {
     }
     return REDECLARATION_STATES::UNIQUE;
   }
+  // Return member with name if it exists, perhaps in the prev environment; nullptr if not 
   Stmt* getMember(const std::string& name) {
     if (members.find(name) != members.end()) {
       return &members[name];
@@ -47,9 +54,11 @@ struct Environment {
     if (!prev) return nullptr;
     return prev->getMember(name);
   }
+  // Return a stmt based on numeric index rather than name
   Stmt* getInOrder(size_t elem) {
     return elem < members.size() ? &members.at(order[elem]) : nullptr;
   }
+  // Clone a pointer to this environment
   std::unique_ptr<Environment> clone() {
     return std::make_unique<Environment>(this);
   }

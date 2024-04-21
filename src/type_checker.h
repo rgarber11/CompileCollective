@@ -12,8 +12,11 @@
 #include "token.h"
 #include "types.h"
 
+// Type checker - ensure type compatibility
 struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
+  // Constructor - take in an environment
   TypeChecker(Environment* program) : program(program){};
+  // Check a declaration statement
   void visitDeclarationStmt(Stmt* stmt) override {
     if (stmt->getDeclarationStmt()->val) {
       _visitExpr(stmt->getDeclarationStmt()->val.get());
@@ -24,6 +27,7 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
       if (!stmt->type) {
         stmt->type = stmt->getDeclarationStmt()->val->type;
       } else {
+        // If conversion is explicit or impossible, output error
         switch (stmt->type->isConvertible(
             stmt->getDeclarationStmt()->val->type.get())) {
           case Convert::SAME:
@@ -37,23 +41,31 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
       }
     }
   }
+  // Enter and exit statement visitors (no implementation)
   void enterStmtVisitor() override {}
   void exitStmtVisitor() override {}
+  // Check a continue statement (no implementation)
   void visitContinueStmt(Stmt* continueStmt) override { return; }
+  // Check a return statement
   void visitReturnStmt(Stmt* returnStmt) override {
     _visitExpr(returnStmt->getReturnStmt()->val.get());
   }
+  // Check a yield statement
   void visitYieldStmt(Stmt* yieldStmt) override {
     _visitExpr(yieldStmt->getYieldStmt()->val.get());
   }
+  // Check an expression statement
   void visitExprStmt(Stmt* exprStmt) override {
     _visitExpr(exprStmt->getExprStmt()->val.get());
   }
+  // Check a class statement
   void visitClassStmt(Stmt* classStmt) override {
+    // Check all parameters
     for (auto& i : classStmt->getClassStmt()->parameters) {
       _visitStmt(&i);
     }
   }
+  // No implementations necessary
   void visitImplStmt(Stmt* implStmt) override {}
   void visitTypeDef(Stmt* typeDef) override { return; }
   Expr* visitIntExpr(Expr* expr) override { return expr; }
@@ -61,7 +73,9 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
   Expr* visitCharExpr(Expr* expr) override { return expr; }
   Expr* visitBoolExpr(Expr* expr) override { return expr; }
   Expr* visitStringExpr(Expr* expr) override { return expr; }
+  // Check binary expression
   Expr* visitBinaryExpr(Expr* expr) override {
+    // Check both sides
     _visitExpr(expr->getBinaryExpr()->left.get());
     _visitExpr(expr->getBinaryExpr()->right.get());
     switch (expr->getBinaryExpr()->op) {
@@ -69,6 +83,7 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
       case TOKEN_TYPE::MINUS:
       case TOKEN_TYPE::SLASH:
       case TOKEN_TYPE::STAR: {
+        // +-*/ operations require int or float
         if (expr->getBinaryExpr()->left->type != program->bottomTypes.intType ||
             expr->getBinaryExpr()->left->type != program->bottomTypes.floatType)
           return nullptr;
@@ -112,6 +127,7 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
       case TOKEN_TYPE::RANGLE:
       case TOKEN_TYPE::GEQ:
       case TOKEN_TYPE::LEQ: {
+        // Comparison operators require int or float
         if (expr->getBinaryExpr()->left->type != program->bottomTypes.intType ||
             expr->getBinaryExpr()->left->type != program->bottomTypes.floatType)
           return nullptr;
@@ -159,6 +175,7 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
       case TOKEN_TYPE::XOR:
       case TOKEN_TYPE::RANGE:
       case TOKEN_TYPE::INCRANGE:
+        // Modulo, range, and bit operations require int
         if (expr->getBinaryExpr()->left->type != program->bottomTypes.intType)
           return nullptr;
         if (expr->getBinaryExpr()->right->type != program->bottomTypes.intType)
@@ -166,11 +183,13 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
         expr->type = program->bottomTypes.intType;
         break;
       case TOKEN_TYPE::ASSIGN:
+        // Assignment is safe
         break;
       case TOKEN_TYPE::OR:
       case TOKEN_TYPE::AND:
       case TOKEN_TYPE::EQUALS:
       case TOKEN_TYPE::NEQUALS:
+        // Logical and equality operators require bool
         if (expr->getBinaryExpr()->left->type != program->bottomTypes.boolType)
           return nullptr;
         if (expr->getBinaryExpr()->right->type != program->bottomTypes.boolType)
@@ -180,10 +199,12 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
     }
     return expr;
   }
+  // Check prefix expression
   Expr* visitPrefixExpr(Expr* expr2) override {
     _visitExpr(expr2->getPrefixExpr()->expr.get());
     switch (expr2->getPrefixExpr()->op) {
       case TOKEN_TYPE::MINUS:
+        // - requires int or float
         if (expr2->getPrefixExpr()->expr->isIntExpr()) {
           expr2->innerExpr =
               IntExpr{-1 * expr2->getPrefixExpr()->expr->getInt()};
@@ -202,6 +223,7 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
           return nullptr;
         break;
       case TOKEN_TYPE::NOT:
+        // ! requires bool or int
         if (expr2->getPrefixExpr()->expr->isIntExpr()) {
           expr2->innerExpr = IntExpr{~expr2->getPrefixExpr()->expr->getInt()};
           expr2->type = program->bottomTypes.intType;
@@ -222,7 +244,9 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
     expr2->type = expr2->getPrefixExpr()->expr->type;
     return expr2;
   }
+  // Check type conversion expression (no implementation)
   Expr* visitTypeConvExpr(Expr* expr) override { return expr; }
+  // Check literal expression
   Expr* visitLiteralExpr(Expr* literalExpr) override {
     literalExpr->type =
         program->getMember(literalExpr->getLiteralExpr()->name)
@@ -230,12 +254,16 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
             : nullptr;
     return literalExpr;
   }
+  // Enter and exit visitor (no implementation)
   void enterExprVisitor() override {}
   void exitExprVisitor() override {}
+  // Visit function and match expression (no implementation)
   Expr* visitFunctionExpr(Expr* functionExpr) override {}
   Expr* visitMatchExpr(Expr* matchExpr) override {}
+  // Visit if expression
   Expr* visitIfExpr(Expr* ifExpr) override {
     visitExpr(ifExpr->getIfExpr()->cond.get());
+    // Condition must be bool
     if (ifExpr->getIfExpr()->cond->type != program->bottomTypes.boolType) {
       std::cerr << "Big Problem!\n";
       return nullptr;
@@ -296,14 +324,18 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
     }
     return ifExpr;
   }
+  // Check block expression
   Expr* visitBlockExpr(Expr* blockExpr) override {
+    // A block that does not yield requires void type
     if (!blockExpr->getBlockExpr()->yields) {
       blockExpr->type = program->bottomTypes.voidType;
       return blockExpr;
     }
     return blockExpr;
   }
+  // Check a for expression
   Expr* visitForExpr(Expr* forExpr) override {
+    // Visit all statements and body expression
     for (int i = 0; i < forExpr->getForExpr()->env->members.size(); ++i) {
       _visitStmt(forExpr->getForExpr()->env->getInOrder(i));
     }
@@ -311,8 +343,10 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
     forExpr->type = forExpr->getForExpr()->body->type;
     return forExpr;
   }
+  // Check while expression
   Expr* visitWhileExpr(Expr* whileExpr) override {
     _visitExpr(whileExpr->getWhileExpr()->cond.get());
+    // Condition must be bool
     if (whileExpr->getWhileExpr()->cond->type !=
         program->bottomTypes.boolType) {
       std::cerr << "Invalid Type.";
@@ -322,7 +356,9 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
     whileExpr->type = whileExpr->getWhileExpr()->body->type;
     return whileExpr;
   }
+  // Check get expression
   Expr* visitGetExpr(Expr* getExpr) override {
+    // Ensure object element is defined
     if (program->isRedeclaration(getExpr->getGetExpr()->name.name) !=
         Environment::REDECLARATION_STATES::REDECLARATION) {
       std::cerr << "Element not defined on object\n";
@@ -331,6 +367,7 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
     getExpr->type = program->getMember(getExpr->getGetExpr()->name.name)->type;
     return getExpr;
   }
+  // Check call expression
   Expr* visitCallExpr(Expr* callExpr) override {
     _visitExpr(callExpr->getCallExpr()->expr.get());
     if (callExpr->getCallExpr()->expr->isLiteralExpr() &&
@@ -358,6 +395,7 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
 
     } else if (callExpr->getCallExpr()->expr->type->isStructType()) {
       for (int i = 0; i < callExpr->getCallExpr()->params.size(); ++i) {
+        // Visit each parameter
         Expr* expr = callExpr->getCallExpr()->params[i].get();
         _visitExpr(expr);
         switch (callExpr->getCallExpr()
@@ -388,11 +426,13 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
       if (callExpr->getCallExpr()
               ->expr->type->getFunctionType()
               ->parameters.size() != callExpr->getCallExpr()->params.size()) {
+        // Ensure arity matches
         std::cerr << "Arity doesn't match.";
         return nullptr;
       }
       for (int i = 0; i < callExpr->getCallExpr()->params.size(); ++i) {
         Expr* expr = callExpr->getCallExpr()->params[i].get();
+        // Visit each parameter
         _visitExpr(expr);
         switch (callExpr->getCallExpr()
                     ->expr->type->getFunctionType()
@@ -425,6 +465,7 @@ struct TypeChecker : public ExprVisitor<Expr*>, StmtVisitor<void> {
       _visitExpr(callExpr->getCallExpr()->params.front().get());
       if (callExpr->getCallExpr()->params.front()->type !=
           program->bottomTypes.intType) {
+        // Front parameter must be int
         std::cerr << "Bad Index!";
         return nullptr;
       }

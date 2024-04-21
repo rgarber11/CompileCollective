@@ -12,16 +12,21 @@
 #include "stmt.h"
 #include "token.h"
 #include "types.h"
+// Parser class - analyze tokens
 class Parser {
  private:
+  // State of parser
   enum class state { NORMAL, IMPL, CLASS };
   state isImplClass = Parser::state::NORMAL;
   bool requireNext(TOKEN_TYPE type);
   bool munch(TOKEN_TYPE type);
 
  public:
+  // Parser types
   enum class parser { PROGRAM, EXPR, TYPE };
+  // Program environment
   Environment program;
+  // Constructors - use a lexer
   explicit Parser(Lexer lexer) : lexer(std::move(lexer)) { setup(); }
   Parser(Lexer lexer, Environment program)
       : program(program), lexer(std::move(lexer)){};
@@ -29,11 +34,13 @@ class Parser {
       : program(parser.program), lexer(parser.lexer), curr(parser.curr) {}
   Parser(const Parser& parser)
       : program(parser.program), lexer(parser.lexer), curr(parser.curr) {}
+  // Default destructor
   ~Parser() = default;
   Environment parse(parser is = Parser::parser::PROGRAM);
 
  private:
   void setup();
+  // Lexer, current token
   Lexer lexer;
   Token curr;
   std::optional<Stmt> typeDef();

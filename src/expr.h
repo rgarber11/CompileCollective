@@ -17,6 +17,7 @@ struct ExprVisitor;
 struct Expr;
 struct Stmt;
 struct Environment;
+// Binary expression - two expressions with an operation
 struct BinaryExpr {
   std::unique_ptr<Expr> left;
   std::unique_ptr<Expr> right;
@@ -28,6 +29,7 @@ struct BinaryExpr {
   BinaryExpr& operator=(BinaryExpr&& other) noexcept;
   ~BinaryExpr();
 };
+// Prefix expression - expression with an operation before it
 struct PrefixExpr {
   std::unique_ptr<Expr> expr;
   TOKEN_TYPE op;
@@ -38,18 +40,23 @@ struct PrefixExpr {
   PrefixExpr& operator=(PrefixExpr&& other) noexcept;
   ~PrefixExpr();
 };
+// Int expression - one integer
 struct IntExpr {
   int val;
 };
+// Bool expression - one boolean
 struct BoolExpr {
   bool val;
 };
+// Float expression - one float
 struct FloatExpr {
   double val;
 };
+// Char expression - one character
 struct CharExpr {
   char c;
 };
+// String expression - one string
 struct StringExpr {
   std::string str;
   explicit StringExpr(const std::string_view str) : str(str) {}
@@ -58,6 +65,7 @@ struct StringExpr {
   StringExpr& operator=(const StringExpr& other) = default;
   ~StringExpr() = default;
 };
+// Type conversion expression - implicit or explicit
 struct TypeConvExpr {
   bool implicit;
   std::shared_ptr<Type> from;  // Definitely won't stay TokenType
@@ -72,6 +80,7 @@ struct TypeConvExpr {
   TypeConvExpr& operator=(TypeConvExpr&& other) noexcept;
   ~TypeConvExpr();
 };
+// Literal expression - a string name
 struct LiteralExpr {
   std::string name;
   LiteralExpr() = default;
@@ -82,6 +91,7 @@ struct LiteralExpr {
   LiteralExpr& operator=(LiteralExpr&& other) noexcept = default;
   ~LiteralExpr() = default;
 };
+// For condition expression - expression and literal expression
 struct ForConditionExpr {
   std::unique_ptr<Expr> expr;
   LiteralExpr var;
@@ -92,6 +102,7 @@ struct ForConditionExpr {
   ForConditionExpr& operator=(ForConditionExpr&& other) noexcept;
   ~ForConditionExpr();
 };
+// Case expression - type, condition, and body
 struct CaseExpr {
   std::shared_ptr<Type> type;
   std::string cond;
@@ -103,6 +114,7 @@ struct CaseExpr {
   CaseExpr& operator=(CaseExpr&& other) noexcept;
   ~CaseExpr();
 };
+// Match expression - condition and cases
 struct MatchExpr {
   std::unique_ptr<Expr> cond;
   std::vector<CaseExpr> cases;
@@ -113,6 +125,7 @@ struct MatchExpr {
   MatchExpr& operator=(MatchExpr&& other) noexcept;
   ~MatchExpr();
 };
+// If expression - condition, if-then, if-else
 struct IfExpr {
   std::unique_ptr<Expr> cond;
   std::unique_ptr<Expr> thenExpr;
@@ -124,6 +137,7 @@ struct IfExpr {
   IfExpr& operator=(IfExpr&& other) noexcept;
   ~IfExpr();
 };
+// Block expression - an environment (scope) with statements, and a possible return or yield
 struct BlockExpr {
   bool returns;
   bool yields;
@@ -136,6 +150,7 @@ struct BlockExpr {
   BlockExpr& operator=(BlockExpr&& blockExpr) noexcept;
   ~BlockExpr();
 };
+// For expression - an environment (scope) and a body
 struct ForExpr {
   std::unique_ptr<Environment> env;
   std::unique_ptr<Expr> body;
@@ -146,6 +161,7 @@ struct ForExpr {
   ForExpr& operator=(ForExpr&& forExpr) noexcept;
   ~ForExpr();
 };
+// While expression - a condition and a body
 struct WhileExpr {
   std::unique_ptr<Expr> cond;
   std::unique_ptr<Expr> body;
@@ -156,6 +172,7 @@ struct WhileExpr {
   WhileExpr& operator=(WhileExpr&& whileExpr) noexcept;
   ~WhileExpr();
 };
+// Get expression - an expression and a name
 struct GetExpr {
   std::unique_ptr<Expr> expr;
   LiteralExpr name;
@@ -167,6 +184,7 @@ struct GetExpr {
   GetExpr& operator=(GetExpr&& getExpr) noexcept;
   ~GetExpr();
 };
+// Call expression - an expression with parameters
 struct CallExpr {
   std::unique_ptr<Expr> expr;
   std::vector<std::unique_ptr<Expr>> params;
@@ -177,6 +195,7 @@ struct CallExpr {
   CallExpr& operator=(CallExpr&& callExpr) noexcept;
   ~CallExpr();
 };
+// Function expression - parameters, number of parameters, return type, and an action
 struct FunctionExpr {
   int arity;
   std::unique_ptr<Environment> parameters;
@@ -189,16 +208,20 @@ struct FunctionExpr {
   FunctionExpr& operator=(FunctionExpr&& functionExpr) noexcept;
   ~FunctionExpr();
 };
+// Every expression is one of the preceding types
 using InnerExpr =
     std::variant<BinaryExpr, PrefixExpr, IntExpr, FloatExpr, BoolExpr, CharExpr,
                  StringExpr, LiteralExpr, FunctionExpr, TypeConvExpr, MatchExpr,
                  IfExpr, BlockExpr, ForExpr, WhileExpr, GetExpr, CallExpr>;
+// Main expression information
 struct Expr {
   SourceLocation sourceLocation;
   std::shared_ptr<Type> type;
   InnerExpr innerExpr;
+  // Accept a new inner expression
   void accept(const InnerExpr& inner_expr) { this->innerExpr = inner_expr; }
   template <typename R>
+  // Visit the expression based on its inner type
   R accept(ExprVisitor<R>* visitor) {
     return std::visit(
         [visitor, this](auto&& arg) -> R {
@@ -241,9 +264,11 @@ struct Expr {
         },
         innerExpr);
   }
+  // Clone a pointer to this expression
   [[nodiscard]] std::unique_ptr<Expr> clone() const noexcept {
     return std::make_unique<Expr>(sourceLocation, type, innerExpr);
   }
+  // Make an expression of various types
   static Expr makeBinary(const Token& op, std::shared_ptr<Type> type);
   static Expr makePrefix(const Token& op, std::shared_ptr<Type> type);
   static Expr makeInt(const Token& op, std::shared_ptr<Type> type, int num);
@@ -252,6 +277,7 @@ struct Expr {
   static Expr makeTypeConv(const SourceLocation& source_location,
                            std::shared_ptr<Type> from,
                            std::shared_ptr<Type> to);
+  // Return an expression of various types
   [[nodiscard]] BinaryExpr* getBinaryExpr() {
     return &std::get<BinaryExpr>(innerExpr);
   }
@@ -299,11 +325,13 @@ struct Expr {
     return &std::get<CallExpr>(innerExpr);
   }
 
+  // Get the value of an int or float expr
   [[nodiscard]] int getInt() const { return std::get<IntExpr>(innerExpr).val; }
   [[nodiscard]] double getFloat() const {
     return std::get<FloatExpr>(innerExpr).val;
   }
 
+  // Check if expression is of various types
   [[nodiscard]] bool isBinaryExpr() const {
     return std::visit(
         [](auto&& arg) {
@@ -427,6 +455,7 @@ struct Expr {
         innerExpr);
   }
 
+  // Default constructor
   Expr() = default;
   Expr(const Expr& expr);
   Expr(Expr&& expr) noexcept;
@@ -435,7 +464,9 @@ struct Expr {
 };
 
 template <typename T>
+// Visitor for an expression
 struct ExprVisitor {
+  // Visit an expression - return ans from accepting, if type is not void
   T visitExpr(Expr* expr) {
     enterExprVisitor();
     if constexpr (std::is_same_v<T, void>) {
@@ -448,6 +479,7 @@ struct ExprVisitor {
     }
   }
   T _visitExpr(Expr* expr) { return expr->accept(this); }
+  // Pure virtual functions
   virtual void enterExprVisitor() = 0;
   virtual void exitExprVisitor() = 0;
 

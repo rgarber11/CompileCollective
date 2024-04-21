@@ -1,6 +1,4 @@
-//
-// Created by rgarber11 on 4/4/24.
-//
+// Copyright (c) 2024 Compile Collective. All Rights Reserved.
 
 #ifndef SENIORPROJECT_STMT_H
 #define SENIORPROJECT_STMT_H
@@ -14,6 +12,7 @@
 template <typename T>
 struct StmtVisitor;
 struct Stmt;
+// Declaration statement - whether const is used, name of the variable, value
 struct DeclarationStmt {
   bool consted;
   std::string name;
@@ -25,15 +24,19 @@ struct DeclarationStmt {
   DeclarationStmt& operator=(const DeclarationStmt& other);
   ~DeclarationStmt();
 };
+// Return statement - value
 struct ReturnStmt {
   std::unique_ptr<Expr> val;
 };
+// Yield statement - value
 struct YieldStmt {
   std::unique_ptr<Expr> val;
 };
+// Expression statement - value
 struct ExprStmt {
   std::unique_ptr<Expr> val;
 };
+// Class statement - name, parameters, type
 struct ClassStmt {
   std::string name;
   std::vector<Stmt> parameters;
@@ -45,6 +48,7 @@ struct ClassStmt {
   ClassStmt& operator=(ClassStmt&& other) noexcept;
   ~ClassStmt();
 };
+// Impl statement - name, whether decorating, parameters, and type
 struct ImplStmt {
   std::string name;
   std::string decorating;
@@ -57,24 +61,32 @@ struct ImplStmt {
   ImplStmt& operator=(ImplStmt&& other) noexcept;
   ~ImplStmt();
 };
+// Type definition - type
 struct TypeDef {
   std::shared_ptr<Type> type;
 };
+// Continue statement
 struct ContinueStmt {};
+// Every statement is one of the preceding types
 using InnerStmt =
     std::variant<ContinueStmt, DeclarationStmt, ReturnStmt, YieldStmt, ExprStmt,
                  ClassStmt, ImplStmt, TypeDef>;
+// Statement
 struct Stmt {
+  // Type and location
   SourceLocation location;
   std::shared_ptr<Type> type;
   InnerStmt stmt;
+  // Clone a pointer to this statement
   [[nodiscard]] std::unique_ptr<Stmt> clone() const {
     return std::make_unique<Stmt>(*this);
   }
+  // Constructors and destructor
   Stmt() = default;
   Stmt(const Stmt& stmt);
   Stmt(Stmt&& stmt) noexcept;
   ~Stmt();
+  // Check if statement is of various types
   bool isDeclarationStmt() {
     return std::visit(
         [](auto&& arg) {
@@ -132,6 +144,7 @@ struct Stmt {
         },
         stmt);
   }
+  // Return a statement of various types
   DeclarationStmt* getDeclarationStmt() {
     return &std::get<DeclarationStmt>(stmt);
   }
@@ -142,6 +155,7 @@ struct Stmt {
   ImplStmt* getImplStmt() { return &std::get<ImplStmt>(stmt); }
   TypeDef* getTypeDef() { return &std::get<TypeDef>(stmt); }
   ContinueStmt* getContinueStmt() { return &std::get<ContinueStmt>(stmt); }
+  // Get string name, based on type, and "" if none
   std::string getName() {
     return std::visit(
         [](auto&& arg) -> std::string {
@@ -164,6 +178,7 @@ struct Stmt {
         stmt);
   };
   template <typename R>
+  // Visit the statement based on its inner type
   R accept(StmtVisitor<R>* visitor) {
     return std::visit(
         [visitor, this](auto&& arg) -> R {
@@ -190,7 +205,9 @@ struct Stmt {
   }
 };
 template <typename T>
+// Visitor for a statement
 struct StmtVisitor {
+  // Visit a statement - return ans from accepting, if type is not void
   T visitStmt(Stmt* stmt) {
     enterStmtVisitor();
     if constexpr (std::is_same_v<T, void>) {
@@ -203,6 +220,7 @@ struct StmtVisitor {
     }
   }
   T _visitStmt(Stmt* stmt) { return stmt->accept(this); }
+  // Pure virtual functions
   virtual void enterStmtVisitor() = 0;
   virtual void exitStmtVisitor() = 0;
   virtual T visitContinueStmt(Stmt* continueStmt) = 0;

@@ -1,6 +1,7 @@
 // Copyright (c) 2024 Compile Collective. All Rights Reserved.
 #include "token.h"
 
+// Return corresponding string for each token type, for debugging
 std::string debugTokenTypes(TOKEN_TYPE type) {
   switch (type) {
     case TOKEN_TYPE::INT:

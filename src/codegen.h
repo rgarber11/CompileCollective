@@ -11,6 +11,7 @@ using llvm::LLVMContext;
 using llvm::Module;
 using llvm::Value;
 
+// Generate code with LLVM
 class CodeGen : public Visitor<Value*> {
  private:
   llvm::LLVMContext* context;
@@ -18,10 +19,13 @@ class CodeGen : public Visitor<Value*> {
   llvm::Module* module;
 
  public:
+  // Constructor (no implementation)
   CodeGen(LLVMContext* context, IRBuilder<>* builder, Module* module)
       : context(context), builder(builder), module(module) {}
+  // Generate code for a prefix expr
   Value* visitPrefixExpr(Expr* expr) override {
     Value* exp = _visit(expr->getPrefix()->expr.get());
+    // Add int or float token
     if (expr->type == TOKEN_TYPE::INT) {
       return builder->CreateMul(
           exp, llvm::ConstantInt::get(*context, llvm::APInt(32, -1, true)));
@@ -30,17 +34,21 @@ class CodeGen : public Visitor<Value*> {
           exp, llvm::ConstantFP::get(*context, llvm::APFloat(-1.0f)));
     }
   }
+  // Generate code for an int expr
   Value* visitIntExpr(Expr* expr) override {
     return llvm::ConstantInt::get(*context,
                                   llvm::APInt(32, expr->getInt(), true));
   }
+  // Generate code for a float expr
   Value* visitFloatExpr(Expr* expr) override {
     return llvm::ConstantFP::get(*context, llvm::APFloat(expr->getFloat()));
   }
+  // Generate code for a binary expr, visiting both children 
   Value* visitBinaryExpr(Expr* expr) override {
     Value* left = _visit(expr->getBinary()->left.get());
     Value* right = _visit(expr->getBinary()->right.get());
     if (expr->type == TOKEN_TYPE::INT) {
+      // Add int operations
       switch (expr->getBinary()->op) {
         case TOKEN_TYPE::PLUS:
           return builder->CreateAdd(left, right);
@@ -54,6 +62,7 @@ class CodeGen : public Visitor<Value*> {
           return nullptr;
       }
     } else {
+      // Add float operations
       switch (expr->getBinary()->op) {
         case TOKEN_TYPE::PLUS:
           return builder->CreateFAdd(left, right);
@@ -68,12 +77,16 @@ class CodeGen : public Visitor<Value*> {
       }
     }
   }
+  // Generate code for implicit type conversions
   Value* visitImplicitTypeConvExpr(Expr* expr) override {
     Value* exp = _visit(expr->getImplicitTypeConvExpr()->expr.get());
     return builder->CreateSIToFP(exp, builder->getDoubleTy());
   }
+  // Enter a visitor (no implementation)
   void enterVisitor() override {}
+  // Exit a visitor (no implementation)
   void exitVisitor() override {}
+  // Use default copy and destructor operations
   CodeGen(CodeGen&&) = default;
   CodeGen(const CodeGen&) = default;
   CodeGen& operator=(CodeGen&&) = default;

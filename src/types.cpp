@@ -3,6 +3,7 @@
 #include <bit>
 #include <memory>
 #include <utility>
+// Constructors
 OptionalType::OptionalType(std::shared_ptr<Type> type)
     : optional(std::move(type)) {}
 OptionalType::OptionalType(const OptionalType& optional_type)
@@ -36,15 +37,19 @@ Type::Type(const Type& type_t)
 Type::Type(const InnerType& type,
            const std::vector<std::shared_ptr<Impl>>& interfaces)
     : type(type), interfaces(interfaces) {}
+// Return if this type is convertible with another one
 Convert Type::isConvertible(Type* t) {
+  // Same types
   if (this == t) return Convert::SAME;
   if (t->isBottomType() && t->getBottomType() == BottomType::VOID) {
+    // Void
     if (this->isBottomType() && this->getBottomType() == BottomType::VOID)
       return Convert::SAME;
     if (this->isOptionalType()) return Convert::IMPLICIT;
     return Convert::FALSE;
   }
   if (this->isOptionalType()) {
+    // Optional
     if (t->isOptionalType()) {
       return this->getOptionalType()->optional->isConvertible(
           t->getOptionalType()->optional.get());
@@ -53,13 +58,16 @@ Convert Type::isConvertible(Type* t) {
       return ans == Convert::SAME ? Convert::IMPLICIT : ans;
     }
   } else if (this->isBottomType()) {
+    // Bottom
     if (this->getBottomType() == BottomType::VOID) return Convert::IMPLICIT;
     if (t->isAliasType()) {
+      // Alias
       auto ans = this->isConvertible(t->getAliasType()->type.get());
       return ans == Convert::SAME ? Convert::IMPLICIT : ans;
     }
     if (!t->isBottomType()) return Convert::FALSE;
     switch (this->getBottomType()) {
+      // Bottom types are convertible with some others
       case BottomType::INT:
         switch (t->getBottomType()) {
           case BottomType::INT:
@@ -99,6 +107,7 @@ Convert Type::isConvertible(Type* t) {
         return Convert::FALSE;
     }
   } else if (this->isTupleType()) {
+    // Tuple
     if (!t->isTupleType() ||
         this->getTupleType()->types.size() != t->getTupleType()->types.size())
       return Convert::FALSE;
@@ -115,6 +124,7 @@ Convert Type::isConvertible(Type* t) {
     }
     return ans;
   } else if (this->isListType()) {
+    // List
     if (!t->getListType()) {
       auto ans = this->getListType()->type->isConvertible(t);
       return ans == Convert::FALSE ? Convert::FALSE : Convert::EXPLICIT;
@@ -132,6 +142,7 @@ Convert Type::isConvertible(Type* t) {
                        t->getListType()->type.get());
     }
   } else if (this->isStructType()) {
+    // Struct
     if (!t->isStructType() ||
         this->getStructType()->types.size() != t->getStructType()->types.size())
       return Convert::FALSE;
@@ -149,6 +160,7 @@ Convert Type::isConvertible(Type* t) {
     }
     return expliciter ? Convert::EXPLICIT : Convert::SAME;
   } else if (this->isAliasType()) {
+    // Alias
     if (t->isAliasType()) {
       if (this->getAliasType()->alias == t->getAliasType()->alias)
         return Convert::SAME;
@@ -161,8 +173,10 @@ Convert Type::isConvertible(Type* t) {
       return ans == Convert::SAME ? Convert::IMPLICIT : ans;
     }
   } else if (this->isImpl()) {
+    // Impl
     return Convert::FALSE;
   } else if (this->isFunctionType()) {
+    // Function
     if (!t->isFunctionType()) return Convert::FALSE;
     if (this->getFunctionType()->parameters.size() !=
         t->getFunctionType()->parameters.size())
@@ -179,6 +193,7 @@ Convert Type::isConvertible(Type* t) {
     }
     return ans;
   } else if (this->isSumType()) {
+    // Sum
     if (!t->isSumType()) {
       Convert ans = Convert::FALSE;
       for (std::shared_ptr<Type> prod : this->getSumType()->types) {
@@ -203,11 +218,14 @@ Convert Type::isConvertible(Type* t) {
       return Convert::IMPLICIT;
     }
   }
+  // False by default
   return Convert::FALSE;
 }
 FunctionType::FunctionType() : returner(nullptr) {}
+// Merge two types
 std::shared_ptr<Type> Type::mergeTypes(std::shared_ptr<Type> a,
                                        std::shared_ptr<Type> b) {
+  // Return either if same types, the one convertible to if implicit conversion possible (a first)
   if (a == b) return a;
   if (a->isConvertible(b.get()) == Convert::SAME ||
       a->isConvertible(b.get()) == Convert::IMPLICIT)
@@ -216,6 +234,7 @@ std::shared_ptr<Type> Type::mergeTypes(std::shared_ptr<Type> a,
       b->isConvertible(a.get()) == Convert::IMPLICIT)
     return b;
   if (a->isSumType() && b->isSumType()) {
+    // Both sum type
     size_t aSize = a->getSumType()->types.size();
     size_t bSize = b->getSumType()->types.size();
     std::vector<bool> required(aSize + bSize, true);
@@ -254,6 +273,7 @@ std::shared_ptr<Type> Type::mergeTypes(std::shared_ptr<Type> a,
     }
     return returnType;
   } else if (a->isSumType()) {
+    // a only sum type
     for (auto& typ : a->getSumType()->types) {
       if (typ->isConvertible(b.get()) == Convert::SAME ||
           typ->isConvertible(b.get()) == Convert::IMPLICIT) {
@@ -262,6 +282,7 @@ std::shared_ptr<Type> Type::mergeTypes(std::shared_ptr<Type> a,
     }
     return a->clone()->getSumType()->types.emplace_back(b);
   } else if (b->isSumType()) {
+    // b only sum type
     for (auto& typ : b->getSumType()->types) {
       if (typ->isConvertible(a.get()) == Convert::SAME ||
           typ->isConvertible(a.get()) == Convert::IMPLICIT) {
@@ -270,6 +291,7 @@ std::shared_ptr<Type> Type::mergeTypes(std::shared_ptr<Type> a,
     }
     return b->clone()->getSumType()->types.emplace_back(a);
   } else {
+    // Optional if other is void, sum otherwise
     if (a->isBottomType() && a->getBottomType() == BottomType::VOID) {
       return std::make_shared<Type>(Type{OptionalType(b), {}});
     }

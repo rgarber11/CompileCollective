@@ -7,8 +7,10 @@
 
 #include "common.h"
 #include "token.h"
+// Lexer class - tokenize input
 class Lexer {
  public:
+  // Copy, destructor, and constructor operations
   explicit Lexer(const std::string_view input)
       : input(input), curr{1, 1}, pos{0} {}
   Lexer(Lexer&& lexer) noexcept
@@ -17,9 +19,11 @@ class Lexer {
       : input(lexer.input), curr(lexer.curr), pos(lexer.pos) {}
   ~Lexer() = default;
 
+  // Return the next token
   Token next();
 
  private:
+  // Store the input, current position, and source location
   const std::string_view input;  // Non-owning reference to data
   SourceLocation curr;
   size_t pos;
