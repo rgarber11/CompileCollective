@@ -95,6 +95,7 @@ https://stackoverflow.com/questions/11657529/how-to-generate-an-executable-from-
   pass.run(*module);
 }
 */
+// Main method (entry point, used for testing)
 int main(int argc, char* argv[]) {
   std::string s{
       "let c: char = '\\x03';\nconst q = '';\n const d = 'a'; const s = "

@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "common.h"
+// List of token types
 enum class TOKEN_TYPE {
   INT,
   PLUS,
@@ -70,6 +71,7 @@ enum class TOKEN_TYPE {
   VOID
 };
 std::string debugTokenTypes(TOKEN_TYPE type);
+// Token information - type, input text, and location
 struct Token {
   TOKEN_TYPE type;
   std::string_view text;

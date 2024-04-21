@@ -17,7 +17,9 @@
 #include "expr.h"
 #include "token.h"
 #include "types.h"
+// Set up the parser
 void Parser::setup() {
+  // Pointers to each bottom type
   program.bottomTypes.intType = std::make_shared<Type>(
       BottomType::INT, std::vector<std::shared_ptr<Impl>>{});
   program.bottomTypes.charType = std::make_shared<Type>(
@@ -31,6 +33,7 @@ void Parser::setup() {
   program.bottomTypes.selfType = std::make_shared<Type>(
       BottomType::SELF, std::vector<std::shared_ptr<Impl>>{});
 }
+// Returns true if next token is of a certain type
 bool Parser::requireNext(TOKEN_TYPE type) {
   Lexer lex = lexer;
   if (lex.next().type != type) {
@@ -40,15 +43,19 @@ bool Parser::requireNext(TOKEN_TYPE type) {
   curr = lexer.next();
   return true;
 }
+// Require token to be of a certain type, then move on to next token
 bool Parser::munch(TOKEN_TYPE type) {
   if (!requireNext(type)) return false;
   curr = lexer.next();
   return true;
 }
+// Parse based on type, and return environment
 Environment Parser::parse(Parser::parser is) {
   curr = lexer.next();
+  // Handle a program parser, until file end
   if (is == parser::PROGRAM) {
     while (curr.type != TOKEN_TYPE::FILE_END) {
+      // Ensure all global statements are valid, and add them to the environment
       auto global = globals();
       if (!global) continue;
       if (program.members.find(global->getName()) != program.members.end()) {
@@ -57,11 +64,13 @@ Environment Parser::parse(Parser::parser is) {
       program.addMember(global->getName(), std::move(global.value()));
     }
     return program;
+  // Handle type parser, add to program
   } else if (is == parser::TYPE) {
     program.addMember("$TypeCheckerType",
                       Stmt{curr.sourceLocation, program.bottomTypes.voidType,
                            TypeDef{type()}});
     return program;
+  // Handle expr parser, add to program
   } else {
     program.addMember("$TypeCheckerExpr",
                       Stmt{curr.sourceLocation, program.bottomTypes.voidType,
@@ -69,8 +78,10 @@ Environment Parser::parse(Parser::parser is) {
     return program;
   }
 }
+// Return the next global statement
 std::optional<Stmt> Parser::globals() {
   std::optional<Stmt> temp;
+  // Ensure global statements are valid
   if (curr.type == TOKEN_TYPE::TYPE) {
     temp = typeDef();
   } else if (curr.type == TOKEN_TYPE::LET || curr.type == TOKEN_TYPE::CONST) {
@@ -82,11 +93,14 @@ std::optional<Stmt> Parser::globals() {
   } else {
     std::cerr << "Bad Global\n";
   }
+  // Ensure statement ends in a semicolon
   munch(TOKEN_TYPE::SEMI);
   return temp;
 }
+// Return the next statement
 std::optional<Stmt> Parser::stmt() {
   std::optional<Stmt> temp;
+  // Ensure statements are valid
   if (curr.type == TOKEN_TYPE::TYPE) {
     temp = typeDef();
   } else if (curr.type == TOKEN_TYPE::LET || curr.type == TOKEN_TYPE::CONST) {
@@ -106,46 +120,59 @@ std::optional<Stmt> Parser::stmt() {
   } else {
     temp = exprStmt();
   }
+  // Ensure statement ends in a semicolon
   munch(TOKEN_TYPE::SEMI);
   return temp;
 }
+// Declaration statement - declare a variable
 std::optional<Stmt> Parser::declarationStmt() {
   Stmt ans{curr.sourceLocation, nullptr, DeclarationStmt{}};
   ans.getDeclarationStmt()->consted = curr.type == TOKEN_TYPE::CONST;
   curr = lexer.next();
+  // Must start with identifier
   requireNext(TOKEN_TYPE::IDEN);
   ans.getDeclarationStmt()->name = std::string{curr.text};
+  // Declare with : or =
   if (munch(TOKEN_TYPE::COLON)) {
     ans.type = std::make_shared<Type>(type());
   }
   if (munch(TOKEN_TYPE::EQUALS)) {
     ans.getDeclarationStmt()->val = expr();
   }
+  // Ensure const declarations include a value
   if (isImplClass != state::NORMAL && ans.getDeclarationStmt()->consted &&
       !ans.getDeclarationStmt()->val) {
     std::cerr << "Const must have definition.";
   }
+  // Ensure statement has at least a type or a value
   if (!ans.type && !ans.getDeclarationStmt()->val) {
     std::cerr << "Either type or value must be given for inference.";
   }
   return ans;
 }
+// Class statement - declare a class
 std::optional<Stmt> Parser::classStmt() {
   state prev = isImplClass;
   isImplClass = state::CLASS;
   Stmt ans =
       Stmt{curr.sourceLocation, program.bottomTypes.voidType, ClassStmt{}};
+  // Begins with class
   munch(TOKEN_TYPE::CLASS);
   ans.getClassStmt()->structType =
       std::make_shared<Type>(Type{StructType({}), {}});
+  // Class name
   requireNext(TOKEN_TYPE::IDEN);
+  // Disallow redeclaration
   if (program.members.find(std::string{curr.text}) != program.members.end()) {
     std::cerr << "Redeclaration!\n";
   }
   ans.getClassStmt()->name = std::string{curr.text};
+  // Define within brackets
   munch(TOKEN_TYPE::LBRACKET);
   while (!munch(TOKEN_TYPE::RBRACKET)) {
+    // Parameters are declaration values
     ans.getClassStmt()->parameters.emplace_back(declarationStmt().value());
+    // Store types
     ans.getClassStmt()->structType->getStructType()->types.emplace_back(
         AliasType{
             ans.getClassStmt()->parameters.back().getDeclarationStmt()->name,
@@ -157,14 +184,17 @@ std::optional<Stmt> Parser::classStmt() {
   isImplClass = prev;
   return ans;
 }
+// Impl statement
 std::optional<Stmt> Parser::implStmt() {
   state prev = isImplClass;
   isImplClass = state::IMPL;
   Stmt ans =
       Stmt{curr.sourceLocation, program.bottomTypes.voidType, ImplStmt{}};
+  // Begins with impl then an identifier
   munch(TOKEN_TYPE::IMPL);
   requireNext(TOKEN_TYPE::IDEN);
   ans.getImplStmt()->name = std::string{curr.text};
+  // For, ensure impl is declared before implementation and only classes are decorated
   if (munch(TOKEN_TYPE::FOR)) {
     requireNext(TOKEN_TYPE::IDEN);
     ans.getImplStmt()->decorating = std::string{curr.text};
@@ -177,10 +207,12 @@ std::optional<Stmt> Parser::implStmt() {
     }
     Stmt* impl = program.getMember(ans.getImplStmt()->name);
     int memberCount = 0;
+    // Statements within brackets
     munch(TOKEN_TYPE::LBRACKET);
     std::vector<Stmt> stmts;
     while (!munch(TOKEN_TYPE::RBRACKET)) {
       stmts.emplace_back(declarationStmt().value());
+      // Ensure impl names are valid
       if (stmts.back().getDeclarationStmt()->name !=
           impl->getImplStmt()
               ->parameters[memberCount]
@@ -192,10 +224,12 @@ std::optional<Stmt> Parser::implStmt() {
 
       ++memberCount;
     }
+    // Ensure full implementation
     if (memberCount != impl->getImplStmt()->parameters.size()) {
       std::cerr << "Impl not fully implemented.\n";
       return std::nullopt;
     }
+    // Insert parameters
     ans.getImplStmt()->parameters.insert(ans.getImplStmt()->parameters.end(),
                                          std::make_move_iterator(stmts.begin()),
                                          std::make_move_iterator(stmts.end()));
@@ -203,8 +237,10 @@ std::optional<Stmt> Parser::implStmt() {
     return ans;
   } else {
     ans.getImplStmt()->implType = std::make_shared<Type>(Type{Impl{{}}, {}});
+    // Within brackets
     munch(TOKEN_TYPE::LBRACKET);
     while (!munch(TOKEN_TYPE::RBRACKET)) {
+      // Store necessary data
       ans.getImplStmt()->parameters.emplace_back(declarationStmt().value());
       ans.getImplStmt()->implType->getImpl()->includes.emplace_back(AliasType{
           ans.getImplStmt()->parameters.back().getDeclarationStmt()->name,
@@ -217,26 +253,31 @@ std::optional<Stmt> Parser::implStmt() {
   isImplClass = prev;
   return ans;
 }
+// Yield statement
 std::optional<Stmt> Parser::yieldStmt() {
   auto location = curr.sourceLocation;
   curr = lexer.next();
   std::unique_ptr<Expr> exp(expr());
   return Stmt{location, exp->type, YieldStmt{std::move(exp)}};
 }
+// Return statement
 std::optional<Stmt> Parser::returnStmt() {
   auto location = curr.sourceLocation;
   curr = lexer.next();
   std::unique_ptr<Expr> exp(expr());
   return Stmt{location, exp->type, ReturnStmt{std::move(exp)}};
 }
+// Expression statement
 std::optional<Stmt> Parser::exprStmt() {
   auto location = curr.sourceLocation;
   return Stmt{location, program.bottomTypes.voidType, ExprStmt{expr()}};
 }
 
+// Type definition
 std::optional<Stmt> Parser::typeDef() {
   auto location = curr.sourceLocation;
   curr = lexer.next();
+  // Identifier = ...
   requireNext(TOKEN_TYPE::IDEN);
   std::string name{curr.text};
   munch(TOKEN_TYPE::ASSIGN);
@@ -244,7 +285,9 @@ std::optional<Stmt> Parser::typeDef() {
       location, program.bottomTypes.voidType,
       TypeDef{std::make_shared<Type>(Type{AliasType{name, type()}, {}})}};
 }
+// Product types
 std::shared_ptr<Type> Parser::productType() {
+  // Return types based on token
   switch (curr.type) {
     case TOKEN_TYPE::FN:
       return functionType();
@@ -255,6 +298,7 @@ std::shared_ptr<Type> Parser::productType() {
     case TOKEN_TYPE::OPTIONAL:
       return optionalType();
     case TOKEN_TYPE::SELF:
+      // Ensure self is only referenced in the proper places
       if (isImplClass == state::NORMAL) {
         std::cerr << "Cannot reference self outside of IMPL or Class.\n";
         break;
@@ -266,35 +310,45 @@ std::shared_ptr<Type> Parser::productType() {
       std::cerr << "This is not a type";
   }
 }
+// Function type
 std::shared_ptr<Type> Parser::functionType() {
+  // fn (...
   munch(TOKEN_TYPE::FN);
   munch(TOKEN_TYPE::LEFT_PAREN);
   std::shared_ptr<Type> ans = std::make_shared<Type>(Type{FunctionType{}, {}});
+  // Between parentheses, add parameters separated by commas
   while (curr.type != TOKEN_TYPE::RIGHT_PAREN) {
     ans->getFunctionType()->parameters.emplace_back(type());
     if (curr.type != TOKEN_TYPE::RIGHT_PAREN) munch(TOKEN_TYPE::COMMA);
   }
+  // ...)->
   munch(TOKEN_TYPE::RIGHT_PAREN);
   munch(TOKEN_TYPE::ARROW);
   ans->getFunctionType()->returner = type();
   return ans;
 }
+// Optional type
 std::shared_ptr<Type> Parser::optionalType() {
+  // optional [...]
   munch(TOKEN_TYPE::OPTIONAL);
   munch(TOKEN_TYPE::LSQUARE);
   std::shared_ptr<Type> ans =
       std::make_shared<Type>(Type{OptionalType{type()}, {}});
   munch(TOKEN_TYPE::RSQUARE);
+  // Return void type if necessary
   if (ans->getOptionalType()->optional->isBottomType() &&
       ans->getOptionalType()->optional->getBottomType() == BottomType::VOID) {
     return program.bottomTypes.voidType;
   }
   return ans;
 }
+// List type
 std::shared_ptr<Type> Parser::listType() {
+  // list [...]
   munch(TOKEN_TYPE::LIST);
   munch(TOKEN_TYPE::LSQUARE);
   int size;
+  // Integer (or *),...
   if (curr.type == TOKEN_TYPE::INT) {
     std::from_chars(curr.text.data(), curr.text.data() + curr.text.size(),
                     size);
@@ -309,9 +363,11 @@ std::shared_ptr<Type> Parser::listType() {
   munch(TOKEN_TYPE::RSQUARE);
   return ans;
 }
+// Tuple type
 std::shared_ptr<Type> Parser::tupleType() {
   curr = lexer.next();
   std::shared_ptr<Type> ans = std::make_shared<Type>(Type{TupleType{}, {}});
+  // Between parens, add types separated by commas
   while (curr.type != TOKEN_TYPE::RIGHT_PAREN) {
     ans->getTupleType()->types.emplace_back(std::make_shared<Type>(type()));
     if (curr.type != TOKEN_TYPE::RIGHT_PAREN) {
@@ -321,7 +377,9 @@ std::shared_ptr<Type> Parser::tupleType() {
   munch(TOKEN_TYPE::RIGHT_PAREN);
   return ans;
 }
+// Type type
 std::shared_ptr<Type> Parser::type() {
+  // Sum and product types
   std::shared_ptr<Type> prev = productType();
   if (curr.type != TOKEN_TYPE::BITOR) return prev;
   std::shared_ptr<Type> ans = std::make_shared<Type>(Type{SumType{{prev}}, {}});
@@ -331,6 +389,7 @@ std::shared_ptr<Type> Parser::type() {
   }
   return ans;
 }
+// Primary (bottom) types
 std::shared_ptr<Type> Parser::bottomType() {
   if (curr.text == "int") {
     curr = lexer.next();
@@ -348,6 +407,7 @@ std::shared_ptr<Type> Parser::bottomType() {
     curr = lexer.next();
     return program.bottomTypes.boolType;
   } else {
+    // Identifier, ensure proper type
     std::string typeText{curr.text};
     curr = lexer.next();
     if (program.getMember(typeText)) {
@@ -366,7 +426,9 @@ std::shared_ptr<Type> Parser::bottomType() {
     }
   }
 }
+// Expressions
 std::unique_ptr<Expr> Parser::expr() {
+  // Assignment by default
   switch (curr.type) {
     case TOKEN_TYPE::IF:
       return ifExpr();
@@ -384,7 +446,9 @@ std::unique_ptr<Expr> Parser::expr() {
       return assign();
   }
 }
+// For expression
 std::unique_ptr<Expr> Parser::forExpr() {
+  // for keyword, inner environment, condition, statements...
   requireNext(TOKEN_TYPE::FOR);
   std::unique_ptr<Expr> ans =
       std::make_unique<Expr>(curr.sourceLocation, nullptr, ForExpr{});
@@ -399,7 +463,9 @@ std::unique_ptr<Expr> Parser::forExpr() {
   program = prev;
   return ans;
 }
+// For condition expression
 std::optional<Stmt> Parser::forConditionExpr() {
+  // Identifier in...
   requireNext(TOKEN_TYPE::IDEN);
   std::string name{curr.text};
   Stmt declaration{curr.sourceLocation, nullptr,
@@ -408,10 +474,12 @@ std::optional<Stmt> Parser::forConditionExpr() {
   declaration.getDeclarationStmt()->val = expr();
   return declaration;
 }
+// If expression
 std::unique_ptr<Expr> Parser::ifExpr() {
   curr = lexer.next();
   std::unique_ptr<Expr> exp =
       std::make_unique<Expr>(curr.sourceLocation, nullptr, IfExpr{});
+  // If, condition, then, else
   exp->getIfExpr()->cond = expr();
   exp->getIfExpr()->thenExpr = expr();
   if (curr.type == TOKEN_TYPE::ELSE) {
@@ -420,14 +488,17 @@ std::unique_ptr<Expr> Parser::ifExpr() {
   }
   return exp;
 }
+// While expression
 std::unique_ptr<Expr> Parser::whileExpr() {
   curr = lexer.next();
   std::unique_ptr<Expr> exp =
       std::make_unique<Expr>(curr.sourceLocation, nullptr, WhileExpr{});
+  // Condition and body
   exp->getWhileExpr()->cond = expr();
   exp->getWhileExpr()->body = expr();
   return exp;
 }
+// Block of code, with environment, between brackets
 std::unique_ptr<Expr> Parser::block() {
   curr = lexer.next();
   Environment prev = program;
@@ -435,6 +506,7 @@ std::unique_ptr<Expr> Parser::block() {
   std::unique_ptr<Expr> exp =
       std::make_unique<Expr>(curr.sourceLocation, nullptr, BlockExpr{});
   while (curr.type != TOKEN_TYPE::RBRACKET) {
+    // Add statements, report if returns or yields
     exp->getBlockExpr()->stmts.emplace_back(
         std::make_unique<Stmt>(stmt().value()));
     if (exp->getBlockExpr()->stmts.back()->isReturnStmt()) {
@@ -448,9 +520,11 @@ std::unique_ptr<Expr> Parser::block() {
   program = prev;
   return exp;
 }
+// Match expression
 std::unique_ptr<Expr> Parser::matchExpr() {
   std::unique_ptr<Expr> ans =
       std::make_unique<Expr>(curr.sourceLocation, nullptr, MatchExpr{});
+  // match, condition, cases between brackets
   munch(TOKEN_TYPE::MATCH);
   ans->getMatchExpr()->cond = expr();
   munch(TOKEN_TYPE::LBRACKET);
@@ -459,7 +533,9 @@ std::unique_ptr<Expr> Parser::matchExpr() {
   }
   return ans;
 }
+// Case expression
 CaseExpr Parser::caseExpr() {
+  // case condition -> body
   munch(TOKEN_TYPE::CASE);
   CaseExpr ans{};
   ans.cond = "";
@@ -471,8 +547,10 @@ CaseExpr Parser::caseExpr() {
   ans.type = ans.body->type;
   return ans;
 }
+// Function expression
 std::unique_ptr<Expr> Parser::functionExpr() {
   curr = lexer.next();
+  // Has own environment
   Environment prev = program;
   program = program.generateInnerEnvironment();
   std::unique_ptr<Expr> exp =
@@ -482,8 +560,10 @@ std::unique_ptr<Expr> Parser::functionExpr() {
   std::vector<std::shared_ptr<Type>> types;
   bool inClass = isImplClass == state::CLASS;
   int arity = 0;
+  // Add parameters between parens
   while (curr.type != TOKEN_TYPE::RIGHT_PAREN) {
     do {
+      // Deal with self type
       if (inClass && curr.type == TOKEN_TYPE::SELF) {
         inClass = false;
         if (curr.type == TOKEN_TYPE::SELF) {
@@ -509,6 +589,7 @@ std::unique_ptr<Expr> Parser::functionExpr() {
     exp->getFunctionExpr()->arity = arity;
   }
   munch(TOKEN_TYPE::ARROW);
+  // Function has parameters, return type, and action
   exp->getFunctionExpr()->parameters = std::make_unique<Environment>(program);
   program = prev;
   exp->getFunctionExpr()->returnType = std::make_shared<Type>(type());
@@ -518,8 +599,10 @@ std::unique_ptr<Expr> Parser::functionExpr() {
            std::vector<std::shared_ptr<Impl>>{}});
   return exp;
 }
+// Assignment (operation priority included, in the subsequent operations)
 std::unique_ptr<Expr> Parser::assign() {
   std::unique_ptr<Expr> ans = orExpr();
+  // Create binary expression if next token is ASSIGN
   if (requireNext(TOKEN_TYPE::ASSIGN)) {
     std::unique_ptr<Expr> assignExpr =
         std::make_unique<Expr>(Expr::makeBinary(curr, ans->type));
@@ -529,6 +612,7 @@ std::unique_ptr<Expr> Parser::assign() {
   }
   return ans;
 }
+// Range expression
 std::unique_ptr<Expr> Parser::rangeExpr() {
   std::unique_ptr<Expr> exp = orExpr();
   if (curr.type == TOKEN_TYPE::RANGE || curr.type == TOKEN_TYPE::INCRANGE) {
@@ -541,8 +625,10 @@ std::unique_ptr<Expr> Parser::rangeExpr() {
   }
   return exp;
 }
+// Or expression
 std::unique_ptr<Expr> Parser::orExpr() {
   std::unique_ptr<Expr> expr = andExpr();
+  // Boolean types
   while (curr.type == TOKEN_TYPE::OR) {
     std::unique_ptr<Expr> binary = std::make_unique<Expr>(
         Expr::makeBinary(curr, program.bottomTypes.boolType));
@@ -553,6 +639,7 @@ std::unique_ptr<Expr> Parser::orExpr() {
   }
   return expr;
 }
+// And expression
 std::unique_ptr<Expr> Parser::andExpr() {
   std::unique_ptr<Expr> expr = bitOrExpr();
   while (curr.type == TOKEN_TYPE::AND) {
@@ -565,6 +652,7 @@ std::unique_ptr<Expr> Parser::andExpr() {
   }
   return expr;
 }
+// Bit or expression
 std::unique_ptr<Expr> Parser::bitOrExpr() {
   std::unique_ptr<Expr> expr = xorExpr();
   while (curr.type == TOKEN_TYPE::BITOR) {
@@ -577,6 +665,7 @@ std::unique_ptr<Expr> Parser::bitOrExpr() {
   }
   return expr;
 }
+// Exclusive or expression
 std::unique_ptr<Expr> Parser::xorExpr() {
   std::unique_ptr<Expr> expr = bitAndExpr();
   while (curr.type == TOKEN_TYPE::XOR) {
@@ -589,6 +678,7 @@ std::unique_ptr<Expr> Parser::xorExpr() {
   }
   return expr;
 }
+// Bit and expression
 std::unique_ptr<Expr> Parser::bitAndExpr() {
   std::unique_ptr<Expr> expr = add();
   while (curr.type == TOKEN_TYPE::BITAND) {
@@ -601,6 +691,7 @@ std::unique_ptr<Expr> Parser::bitAndExpr() {
   }
   return expr;
 }
+// Equate expression (==, !=)
 std::unique_ptr<Expr> Parser::equateExpr() {
   std::unique_ptr<Expr> expr = notExpr();
   while (curr.type == TOKEN_TYPE::EQUALS || curr.type == TOKEN_TYPE::NEQUALS) {
@@ -613,6 +704,7 @@ std::unique_ptr<Expr> Parser::equateExpr() {
   }
   return expr;
 }
+// Not expression (!)
 std::unique_ptr<Expr> Parser::notExpr() {
   if (curr.type == TOKEN_TYPE::NOT) {
     std::unique_ptr<Expr> expr = std::make_unique<Expr>(
@@ -625,6 +717,7 @@ std::unique_ptr<Expr> Parser::notExpr() {
     return add();
   }
 }
+// Add (+ and -)
 std::unique_ptr<Expr> Parser::add() {
   std::unique_ptr<Expr> expr = mult();
   while (curr.type == TOKEN_TYPE::PLUS || curr.type == TOKEN_TYPE::MINUS) {
@@ -638,6 +731,7 @@ std::unique_ptr<Expr> Parser::add() {
   }
   return expr;
 }
+// Multiply (* and /)
 std::unique_ptr<Expr> Parser::mult() {
   std::unique_ptr<Expr> expr = negate();
   while (curr.type == TOKEN_TYPE::STAR || curr.type == TOKEN_TYPE::SLASH) {
@@ -651,6 +745,7 @@ std::unique_ptr<Expr> Parser::mult() {
   }
   return expr;
 }
+// Negate (-)
 std::unique_ptr<Expr> Parser::negate() {
   if (curr.type == TOKEN_TYPE::MINUS) {
     std::unique_ptr<Expr> expr = std::make_unique<Expr>(
@@ -663,8 +758,10 @@ std::unique_ptr<Expr> Parser::negate() {
     return access();
   }
 }
+// Access
 std::unique_ptr<Expr> Parser::access() {
   std::unique_ptr<Expr> exp = primary();
+  // Deal with convert (within parentheses, separated by comma)
   if (exp->isLiteralExpr() && exp->getLiteralExpr()->name == "convert") {
     auto typeHolder = std::make_unique<Expr>(
         Expr{curr.sourceLocation, nullptr, LiteralExpr{curr.text}});
@@ -683,6 +780,7 @@ std::unique_ptr<Expr> Parser::access() {
     return converter;
   }
   for (;;) {
+    // Between parens
     if (curr.type == TOKEN_TYPE::LEFT_PAREN) {
       std::unique_ptr<Expr> func =
           std::make_unique<Expr>(curr.sourceLocation, nullptr, CallExpr{});
@@ -690,12 +788,14 @@ std::unique_ptr<Expr> Parser::access() {
       curr = lexer.next();
       if (curr.type != TOKEN_TYPE::RIGHT_PAREN) {
         do {
+          // Add parameters, separated by commas
           func->getCallExpr()->params.emplace_back(expr());
         } while (curr.type == TOKEN_TYPE::COMMA);
       }
       exp = std::move(func);
       curr = lexer.next();
     } else if (curr.type == TOKEN_TYPE::DOT) {
+      //.Identifier
       requireNext(TOKEN_TYPE::IDEN);
       std::unique_ptr<Expr> getter =
           std::make_unique<Expr>(curr.sourceLocation, nullptr, GetExpr{});
@@ -709,15 +809,20 @@ std::unique_ptr<Expr> Parser::access() {
   }
   return exp;
 }
+// Fixer, view string in different form
 std::string fixer(const std::string_view orig) {
+  // Remove quotes
   const std::string_view no_quotes = orig.substr(1, orig.size() - 1);
   std::string returner;
   for (int i = 0; i < no_quotes.size(); ++i) {
+    // Add non-escape sequences
     if (no_quotes[i] != '\\') {
       returner.push_back(orig[i]);
       continue;
     }
+    // Escape sequences
     if (no_quotes[i + 1] == 'x') {
+      // Hexademical
       returner.push_back(
           (char)stoi(std::string{no_quotes.substr(i + 2, 2)}, nullptr, 16));
       i += 3;
@@ -764,8 +869,10 @@ std::string fixer(const std::string_view orig) {
   }
   return returner;
 }
+// Deal with primary tokens, return the proper expression
 std::unique_ptr<Expr> Parser::primary() {
   switch (curr.type) {
+    // Int
     case TOKEN_TYPE::INT: {
       int val{};
       auto result = std::from_chars(curr.text.data(),
@@ -780,6 +887,7 @@ std::unique_ptr<Expr> Parser::primary() {
       curr = lexer.next();
       return expr;
     }
+    // Float
     case TOKEN_TYPE::FLOAT: {
       double val{};
       auto result = std::from_chars(curr.text.data(),
@@ -794,6 +902,7 @@ std::unique_ptr<Expr> Parser::primary() {
       curr = lexer.next();
       return expr;
     }
+    // Left paren
     case TOKEN_TYPE::LEFT_PAREN: {
       curr = lexer.next();
       auto result = expr();
@@ -805,7 +914,9 @@ std::unique_ptr<Expr> Parser::primary() {
       curr = lexer.next();
       return result;
     }
+    // Char
     case TOKEN_TYPE::CHAR: {
+      // Regular character
       if (curr.text.size() == 3) {
         char c = curr.text.at(1);
         std::unique_ptr<Expr> returner = std::make_unique<Expr>(
@@ -813,6 +924,7 @@ std::unique_ptr<Expr> Parser::primary() {
         curr = lexer.next();
         return returner;
       } else if (curr.text.size() == 4) {
+        // Escape sequences
         char c;
         switch (curr.text.at(2)) {
           case 'a':
@@ -856,6 +968,7 @@ std::unique_ptr<Expr> Parser::primary() {
         curr = lexer.next();
         return returner;
       } else {
+        // Hexadecimal
         char c = std::stoi(std::string{curr.text.substr(3, 2)}, 0, 16);
         std::unique_ptr<Expr> returner = std::make_unique<Expr>(
             curr.sourceLocation, program.bottomTypes.charType, CharExpr(c));
@@ -863,6 +976,7 @@ std::unique_ptr<Expr> Parser::primary() {
         return returner;
       }
     }
+    // String
     case TOKEN_TYPE::STRING: {
       std::string correct = fixer(curr.text);
       std::unique_ptr<Expr> returner = std::make_unique<Expr>(
@@ -874,6 +988,7 @@ std::unique_ptr<Expr> Parser::primary() {
       curr = lexer.next();
       return returner;
     }
+    // Identifier
     case TOKEN_TYPE::IDEN: {
       std::unique_ptr<Expr> returner = std::make_unique<Expr>(
           curr.sourceLocation, program.bottomTypes.voidType,
@@ -881,18 +996,21 @@ std::unique_ptr<Expr> Parser::primary() {
       curr = lexer.next();
       return returner;
     }
+    // true
     case TOKEN_TYPE::TRUE: {
       std::unique_ptr<Expr> exp = std::make_unique<Expr>(
           curr.sourceLocation, program.bottomTypes.boolType, BoolExpr{true});
       curr = lexer.next();
       return exp;
     }
+    // false
     case TOKEN_TYPE::FALSE: {
       std::unique_ptr<Expr> exp = std::make_unique<Expr>(
           curr.sourceLocation, program.bottomTypes.boolType, BoolExpr{false});
       curr = lexer.next();
       return exp;
     }
+    // self
     case TOKEN_TYPE::SELF: {
       if (isImplClass != state::NORMAL) {
         std::unique_ptr<Expr> returner = std::make_unique<Expr>(
@@ -905,6 +1023,7 @@ std::unique_ptr<Expr> Parser::primary() {
       }
     }
     default:
+      // Otherwise, token is invalid
       std::cerr << "Invalid token at: " << curr.sourceLocation.line << ":"
                 << curr.sourceLocation.character << "!\n";
       return {};

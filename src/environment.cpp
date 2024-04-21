@@ -1,5 +1,4 @@
-//
-// Created by rgarber11 on 4/5/24.
-//
-
+// Copyright (c) 2024 Compile Collective. All Rights Reserved.
 #include "environment.h"
+
+// No implementation
