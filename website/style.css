@@ -1,0 +1,21 @@
+a:hover {background-color: chartreuse; color: brown}
+a:active {color: #9999ff;}
+a:visited {color: #6666aa;}
+
+label {color: white; font-family: Arial; font-size: 17px;}
+div.form {display: grid; grid-template-columns: max-content max-content; grid-gap: 5px; margin-left: 34.5vw;}
+
+p {font-family: Arial, Helvetica, sans-serif; font-size: 15px; color: black;}
+td {font-family: Arial, Helvetica, sans-serif; font-size: 15px; color: white;}
+h1 {font-family: Copperplate, "Copperplate Gothic Light", fantasy; padding-top: 20px; padding-bottom: 20px; margin-bottom: 0px; margin-top: 0px; color: maroon; font-size: 80px; text-align: center;}
+h2 {font-family: Monaco; color: white; margin: 20px; text-align: center; font-size: 50px;}
+h3 {font-family: Monaco; color: white; margin: 20px; text-align: center;}
+h4 {font-family: Monaco; color: white; font-size: 20px;}
+h5 {font-family: Monaco; color: white;}
+h6 {font-family: Monaco; color: white;}
+
+body {margin-left: 60px; margin-right: 60px; margin-bottom: 60px;}
+
+hr {border: 3px dashed #dddddd;}
+
+ol {list-style-position: inside; margin-bottom: 10px;}
