@@ -1,5 +1,4 @@
 // Copyright (c) 2024 Compile Collective. All Rights Reserved.
-
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
 #include <clang/Frontend/TextDiagnosticPrinter.h>
@@ -14,18 +13,23 @@
 
 #include <fstream>
 #include <sstream>
+// #include "PostFixExprVisualizer.h"
+// #include "codegen.h"
+#include <iostream>
+#include <vector>
 
-#include "PostFixExprVisualizer.h"
-#include "codegen.h"
 #include "lexer.h"
+#include "token.h"
 #include "parser.h"
 #include "type_checker.h"
+#include "codegen.h"
 std::string readFile(const char* path) {
   std::ifstream file(path);
   std::stringstream ss;
   ss << file.rdbuf();
   return ss.str();
 }
+ /*
 void createMain(LLVMContext* context, Module* module, IRBuilder<>* builder,
                 Value* val) {
   const auto func_type = llvm::FunctionType::get(builder->getInt32Ty(), false);
@@ -57,11 +61,13 @@ void createMain(LLVMContext* context, Module* module, IRBuilder<>* builder,
       llvm::ConstantInt::get(builder->getInt32Ty(), llvm::APInt(32, 0, true)));
   module->dump();
 }
+  */
 void writeModuleToFile(
     Module* module,
     const char*
         path)  // For now using answer from
-               // https://stackoverflow.com/questions/11657529/how-to-generate-an-executable-from-an-llvmmodule
+               //
+//https://stackoverflow.com/questions/11657529/how-to-generate-an-executable-from-an-llvmmodule
 {
   auto TargetTriple = llvm::sys::getDefaultTargetTriple();
   llvm::InitializeAllTargetInfos();
@@ -88,24 +94,22 @@ void writeModuleToFile(
   TargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType);
   pass.run(*module);
 }
-
+// Main method (entry point, used for testing)
 int main(int argc, char* argv[]) {
   if (argc != 3) return 255;
   std::string input = readFile(argv[1]);
   Parser parser{Lexer{input}};
-  auto expr = parser.parse();
-  PostFixExprVisualizer printer{};
-  TypeChecker type_checker{};
-  type_checker.visit(expr.get());
-  printer.visit(expr.get());
+  auto env = parser.parse();
+  TypeChecker type_checker{env.get()};
+  type_checker.visit();
 
   llvm::LLVMContext
       context;  // Based off https://layle.me/posts/using-llvm-with-cmake/
   llvm::IRBuilder builder(context);
   const auto module = std::make_unique<llvm::Module>("first type", context);
-  CodeGen code_gen(&context, &builder, module.get());
-  llvm::Value* val = code_gen.visit(expr.get());
-  createMain(&context, module.get(), &builder, val);
+  CodeGen code_gen(env.get(), &context, &builder, module.get());
+  llvm::Value* val = code_gen.visitDeclarationStmt(env->getMember("main"));
+  module->dump();
   writeModuleToFile(module.get(), argv[2]);
   return 0;
 }

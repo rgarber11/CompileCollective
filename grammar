@@ -1,0 +1,50 @@
+program ::= (globals)*
+stmt ::= globals | returnStmt | yieldStmt | exprStmt | continueStmt
+globals ::= letStmt | constStmt | classStmt | implDeclaration | implStmt | typeDef
+letStmt ::= "let" IDEN ((":" type) | ((":" type)? "=" expr)) ";"
+constStmt ::= "const" IDEN (":" type)? "=" expr ";"
+classStmt ::= "class" IDEN "{"(globals)* "}" ";"
+implDeclaration ::= "impl" IDEN "{" (globals)* "}" ";"
+implStmt ::= "impl" IDEN "for" IDEN "{" (globals)* "}" ";"
+typeDef ::= "type" IDEN "=" type ";"
+type ::= sumType
+sumType ::= productType ("|" productType)*
+productType ::= listType | tupleType | optionalType | functionType | aliasType | bottomType
+listType ::= "list" "["(WHOLE|"*") "," type "]"
+tupleType ::= "(" (type ",")* type ")"
+optionalType ::= "optional" "[" type "]"
+functionType ::= "fn" "(" ((IDEN ":" type ",")* (IDEN ":" type)? ")" "->" type
+aliasType ::= IDEN
+bottomType ::= "int" | "bool" | "char" | "float" | "void" | "self"
+returnStmt ::= "return" expr ";"
+yieldStmt ::= "yield" expr ";"
+continueStmt ::= "continue" ";"
+exprStmt ::= expr ";"
+expr ::= assignExpr | blockExpr | ifExpr | forExpr | whileExpr | matchExpr | functionExpr
+functionExpr ::= "fn" "(" ((self|(IDEN ":" type))("," IDEN ":" type)*)? ")" "->" type expr
+ifExpr ::= "if" expr expr ("else" expr)?
+forExpr ::= "for" IDEN "in" expr expr
+whileExpr ::= "while" expr expr
+matchExpr ::= "match" expr "{" "caseExpr" "}"
+caseExpr ::= "case" expr expr
+blockExpr ::= "{" (stmt)* "}"
+assignExpr ::= ((accessExpr ".")?IDEN "=" assignExpr) | orExpr
+orExpr ::= andExpr ("||" andExpr)*
+andExpr ::= bitOrExpr ("&&" bitOrExpr)*
+bitOrExpr ::= xorExpr ("|" xorExpr)*
+xorExpr ::= bitAndExpr ("^" bitAndExpr)*
+bitAndExpr ::= equalityExpr ("&" equalityExpr)*
+equalityExpr ::= compExpr (("=="|"!=") compExpr)*
+compExpr ::= shiftExpr (("<"|">"|"<="|">=") shiftExpr)*
+shiftExpr ::= addExpr (("<<"|">>") addExpr)*
+addExpr ::= multExpr (("+"|"-") multExpr)*
+multExpr ::= prefixExpr (("*"|"/"|"%")* prefixExpr)*
+prefixExpr ::= "-"? accessExpr
+accessExpr ::= primary ( ("[" expr "]") | ("(" (expr ("," expr)*)? ")") | (("." IDEN)*))*;
+primary ::= "true" | "false" | "void" | IDEN | INT | CHAR | STRING | "(" expr ")"
+IDEN ::= [A-Za-z_][A-Za-z0-9_]*
+WHOLE ::= [1-9][0-9]*
+FLOAT ::= INT "." INT
+INT ::= [0-9]+
+STRING ::= "\"" CHAR* "\""
+CHAR ::= [ -\[\]-~] | ("\"("a"|"b"|"e"|"f"|"n"|"r"|"t"|"v"|"\"|"\'"|"\""|"?"|(x[0-9][0-9])))

@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "common.h"
+// List of token types
 enum class TOKEN_TYPE {
   INT,
   PLUS,
@@ -15,10 +16,62 @@ enum class TOKEN_TYPE {
   ERROR,
   LEFT_PAREN,
   RIGHT_PAREN,
-  FLOAT
-
+  FLOAT,
+  LET,
+  COMMA,
+  CONST,
+  FOR,
+  WHILE,
+  IF,
+  LANGLE,
+  RANGLE,
+  ASSIGN,
+  NEQUALS,
+  EQUALS,
+  GEQ,
+  LEQ,
+  IDEN,
+  TRUE,
+  FALSE,
+  SEMI,
+  RETURN,
+  YIELD,
+  AND,
+  BITAND,
+  NOT,
+  XOR,
+  OR,
+  BITOR,
+  LSHIFT,
+  RSHIFT,
+  STRING,
+  CHAR,
+  FN,
+  CLASS,
+  IMPL,
+  LSQUARE,
+  RSQUARE,
+  LBRACKET,
+  RBRACKET,
+  MATCH,
+  CASE,
+  SELF,
+  ELSE,
+  IN,
+  DOT,
+  RANGE,
+  INCRANGE,
+  TYPE,
+  COLON,
+  ARROW,
+  OPTIONAL,
+  LIST,
+  MOD,
+  CONTINUE,
+  VOID
 };
 std::string debugTokenTypes(TOKEN_TYPE type);
+// Token information - type, input text, and location
 struct Token {
   TOKEN_TYPE type;
   std::string_view text;
