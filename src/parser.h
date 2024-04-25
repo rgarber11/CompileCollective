@@ -20,23 +20,26 @@ class Parser {
   state isImplClass = Parser::state::NORMAL;
   bool requireNext(TOKEN_TYPE type);
   bool munch(TOKEN_TYPE type);
+  bool eatCurr(TOKEN_TYPE type);
+  bool inLoop = false;
+  bool inBlock = false;
 
  public:
   // Parser types
   enum class parser { PROGRAM, EXPR, TYPE };
   // Program environment
-  Environment program;
+  std::unique_ptr<Environment> program;
   // Constructors - use a lexer
   explicit Parser(Lexer lexer) : lexer(std::move(lexer)) { setup(); }
-  Parser(Lexer lexer, Environment program)
+  Parser(Lexer lexer, Environment* program)
       : program(program), lexer(std::move(lexer)){};
   Parser(Parser&& parser)
-      : program(parser.program), lexer(parser.lexer), curr(parser.curr) {}
+      : program(std::move(parser.program)), lexer(parser.lexer), curr(parser.curr) {}
   Parser(const Parser& parser)
-      : program(parser.program), lexer(parser.lexer), curr(parser.curr) {}
+      : program(parser.program->clone()), lexer(parser.lexer), curr(parser.curr) {}
   // Default destructor
   ~Parser() = default;
-  Environment parse(parser is = Parser::parser::PROGRAM);
+  std::unique_ptr<Environment> parse(parser is = Parser::parser::PROGRAM);
 
  private:
   void setup();
@@ -68,6 +71,8 @@ class Parser {
 
   std::unique_ptr<Expr> xorExpr();
   std::unique_ptr<Expr> bitOrExpr();
+  std::unique_ptr<Expr> relation();
+  std::unique_ptr<Expr> shift();
   std::unique_ptr<Expr> add();
   std::unique_ptr<Expr> mult();
   std::unique_ptr<Expr> primary();

@@ -8,6 +8,8 @@ add_executable(SeniorProject main.cpp common.h lexer.cpp lexer.h expr.h parser.c
         types.h
         types.cpp
         stmt.cpp
-        stmt.h)
+        stmt.h
+        common.cpp
+)
 llvm_map_components_to_libnames(llvm_libs all ${LLVM_TARGETS_TO_BUILD} support core irreader codegen mc mca mcparser option irprinter passes)
 target_link_libraries(SeniorProject ${llvm_libs})

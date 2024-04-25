@@ -13,11 +13,11 @@ OptionalType::OptionalType(OptionalType&& optional_type) noexcept
     : optional(optional_type.optional ? optional_type.optional->clone()
                                       : nullptr) {}
 ListType::ListType(const ListType& list_type)
-    : type(list_type.type ? list_type.type->clone() : nullptr) {}
+    : size(list_type.size), type(list_type.type ? list_type.type->clone() : nullptr) {}
 ListType::ListType(ListType&& list_type) noexcept
-    : type(list_type.type ? list_type.type->clone() : nullptr) {}
+    : size(list_type.size), type(std::move(list_type.type)) {}
 ListType::ListType(int size, std::shared_ptr<Type> type)
-    : size(size), type(type) {}
+    : size(size), type(std::move(type)) {}
 FunctionType::FunctionType(const FunctionType& function_type)
     : returner(function_type.returner ? function_type.returner->clone()
                                       : nullptr),
@@ -225,7 +225,10 @@ FunctionType::FunctionType() : returner(nullptr) {}
 // Merge two types
 std::shared_ptr<Type> Type::mergeTypes(std::shared_ptr<Type> a,
                                        std::shared_ptr<Type> b) {
-  // Return either if same types, the one convertible to if implicit conversion possible (a first)
+  // Return either if same types, the one convertible to if implicit conversion
+  // possible (a first)
+  if (!a) return b;
+  if (!b) return a;
   if (a == b) return a;
   if (a->isConvertible(b.get()) == Convert::SAME ||
       a->isConvertible(b.get()) == Convert::IMPLICIT)

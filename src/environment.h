@@ -22,18 +22,18 @@ struct Environment {
     std::shared_ptr<Type> floatType;
     std::shared_ptr<Type> selfType;
   };
-  Environment* prev;
+  Environment* prev = nullptr;
   BottomTypes bottomTypes;
   std::unordered_map<std::string, Stmt> members;
   std::vector<std::string> order;
   // Return an environment object
-  Environment generateInnerEnvironment() {
-    return Environment{this, this->bottomTypes,
-                       std::unordered_map<std::string, Stmt>{}};
+  std::unique_ptr<Environment> generateInnerEnvironment() {
+    return std::make_unique<Environment>(Environment{this, this->bottomTypes,
+                       std::unordered_map<std::string, Stmt>{}});
   }
   // Add a name to members and order
   void addMember(std::string name, Stmt environ) {
-    members.emplace(name, environ);
+    members.emplace(name, std::move(environ));
     order.emplace_back(name);
   }
   // Return the appropriate redeclaration state

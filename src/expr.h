@@ -56,6 +56,7 @@ struct FloatExpr {
 struct CharExpr {
   char c;
 };
+struct VoidExpr {};
 // String expression - one string
 struct StringExpr {
   std::string str;
@@ -107,8 +108,37 @@ struct ForConditionExpr {
 // Case expression - type, condition, and body
 struct CaseExpr {
   std::shared_ptr<Type> type;
-  std::string cond;
+  std::variant<std::string, std::unique_ptr<Expr>, std::shared_ptr<Type>> cond;
   std::unique_ptr<Expr> body;
+  bool isStringCond() const {
+    return std::visit(
+        [](auto&& arg) {
+          return std::is_same_v<std::string, std::decay_t<decltype(arg)>>;
+        },
+        cond);
+  }
+  bool isTypeCond() const {
+    return std::visit(
+        [](auto&& arg) {
+          return std::is_same_v<std::shared_ptr<Type>,
+                                std::decay_t<decltype(arg)>>;
+        },
+        cond);
+  }
+  bool isExprCond() const {
+    return std::visit(
+        [](auto&& arg) {
+          return std::is_same_v<std::unique_ptr<Expr>,
+                                std::decay_t<decltype(arg)>>;
+        },
+        cond);
+  }
+  Expr* getExpr() const {
+    return std::get<std::unique_ptr<Expr>>(this->cond).get();
+  }
+  std::shared_ptr<Type> getTypeCase() const {
+    return std::get<std::shared_ptr<Type>>(this->cond);
+  }
   CaseExpr() = default;
   CaseExpr(const CaseExpr& caseExpr);
   CaseExpr(CaseExpr&& caseExpr) noexcept;
@@ -202,6 +232,7 @@ struct CallExpr {
 // action
 struct FunctionExpr {
   int arity;
+  std::string name;
   std::unique_ptr<Environment> parameters;
   std::shared_ptr<Type> returnType;
   std::unique_ptr<Expr> action;
@@ -216,7 +247,7 @@ struct FunctionExpr {
 using InnerExpr =
     std::variant<BinaryExpr, PrefixExpr, IntExpr, FloatExpr, BoolExpr, CharExpr,
                  StringExpr, LiteralExpr, FunctionExpr, TypeConvExpr, MatchExpr,
-                 IfExpr, BlockExpr, ForExpr, WhileExpr, GetExpr, CallExpr>;
+                 IfExpr, BlockExpr, ForExpr, WhileExpr, GetExpr, CallExpr, VoidExpr>;
 // Main expression information
 struct Expr {
   SourceLocation sourceLocation;
@@ -264,6 +295,8 @@ struct Expr {
             return visitor->visitGetExpr(this);
           } else if (std::is_same_v<T, CallExpr>) {
             return visitor->visitCallExpr(this);
+          } else if (std::is_same_v<T, VoidExpr>) {
+            return visitor->visitVoidExpr(this);
           }
         },
         innerExpr);
@@ -504,5 +537,6 @@ struct ExprVisitor {
   virtual T visitWhileExpr(Expr* whileExpr) = 0;
   virtual T visitGetExpr(Expr* getExpr) = 0;
   virtual T visitCallExpr(Expr* callExpr) = 0;
+  virtual T visitVoidExpr(Expr* callExpr) = 0;
 };
 #endif  // INCLUDE_SRC_EXPR_H_

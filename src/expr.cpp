@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Compile Collective. All Rights Reserved.
 #include "expr.h"
 
-#include <execution>
+#include <algorithm>
 #include <memory>
 
 #include "environment.h"
@@ -146,17 +146,26 @@ Expr::Expr(const SourceLocation& source_location, std::shared_ptr<Type> type,
            const InnerExpr& inner_expr)
     : sourceLocation(source_location),
       type(std::move(type)),
-      innerExpr(inner_expr) {}
+      innerExpr(std::move(inner_expr)) {}
 Expr::~Expr() = default;
 FunctionExpr::FunctionExpr(const FunctionExpr& functionExpr)
     : arity(functionExpr.arity),
-      parameters(functionExpr.parameters->clone()),
+      name(functionExpr.name),
+      parameters(functionExpr.parameters ? functionExpr.parameters->clone() : nullptr),
       returnType(functionExpr.returnType),
-      action(functionExpr.action->clone()) {}
-FunctionExpr::FunctionExpr(FunctionExpr&& functionExpr) noexcept = default;
+      action(functionExpr.action ? functionExpr.action->clone() : nullptr) {}
+FunctionExpr::FunctionExpr(FunctionExpr&& functionExpr) noexcept : arity(functionExpr.arity), name(std::move(functionExpr.name)), parameters(std::move(functionExpr.parameters)), returnType(std::move(functionExpr.returnType)), action(std::move(functionExpr.action)) {}
 IfExpr::~IfExpr() = default;
 CaseExpr::CaseExpr(const CaseExpr& caseExpr)
-    : type(caseExpr.type), cond(caseExpr.cond), body(caseExpr.body->clone()) {}
+    : type(caseExpr.type), body(caseExpr.body ? caseExpr.body->clone() : nullptr) {
+  if (caseExpr.isExprCond()) {
+    cond = caseExpr.getExpr()->clone();
+  } else if (caseExpr.isTypeCond()) {
+    cond = caseExpr.getTypeCase();
+  } else {
+    cond = std::get<std::string>(caseExpr.cond);
+  }
+}
 CaseExpr::CaseExpr(CaseExpr&& caseExpr) noexcept
     : type(std::move(caseExpr.type)),
       cond(std::move(caseExpr.cond)),
@@ -172,8 +181,8 @@ MatchExpr::~MatchExpr() = default;
 ForConditionExpr::~ForConditionExpr() = default;
 BinaryExpr& BinaryExpr::operator=(const BinaryExpr& other) {
   this->op = other.op;
-  this->left = other.left->clone();
-  this->right = other.right->clone();
+  this->left = other.left ? other.left->clone() : nullptr;
+  this->right = other.right ? other.right->clone() : nullptr;
   return *this;
 }
 BinaryExpr& BinaryExpr::operator=(BinaryExpr&& other) noexcept {
@@ -184,7 +193,7 @@ BinaryExpr& BinaryExpr::operator=(BinaryExpr&& other) noexcept {
 }
 PrefixExpr& PrefixExpr::operator=(const PrefixExpr& other) {
   this->op = other.op;
-  this->expr = other.expr->clone();
+  this->expr = other.expr ? other.expr->clone() : nullptr;
   return *this;
 }
 PrefixExpr& PrefixExpr::operator=(PrefixExpr&& other) noexcept {
@@ -196,7 +205,7 @@ TypeConvExpr& TypeConvExpr::operator=(const TypeConvExpr& other) {
   this->implicit = other.implicit;
   this->from = other.from;
   this->to = other.to;
-  this->expr = other.expr->clone();
+  this->expr = other.expr ? other.expr->clone() : nullptr;
   return *this;
 }
 TypeConvExpr& TypeConvExpr::operator=(TypeConvExpr&& other) noexcept {
@@ -208,7 +217,7 @@ TypeConvExpr& TypeConvExpr::operator=(TypeConvExpr&& other) noexcept {
 }
 
 ForConditionExpr& ForConditionExpr::operator=(const ForConditionExpr& other) {
-  this->expr = other.expr->clone();
+  this->expr = other.expr ? other.expr->clone() : nullptr;
   this->var = other.var;
   return *this;
 }
@@ -221,7 +230,13 @@ ForConditionExpr& ForConditionExpr::operator=(
 
 CaseExpr& CaseExpr::operator=(const CaseExpr& other) {
   type = other.type;
-  cond = other.cond;
+  if (other.isExprCond()) {
+    cond = other.getExpr()->clone();
+  } else if (other.isTypeCond()) {
+    cond = other.getTypeCase();
+  } else {
+    cond = std::get<std::string>(other.cond);
+  }
   body = other.body->clone();
   return *this;
 }
@@ -233,7 +248,7 @@ CaseExpr& CaseExpr::operator=(CaseExpr&& other) noexcept {
 }
 
 MatchExpr& MatchExpr::operator=(const MatchExpr& other) {
-  cond = other.cond->clone();
+  cond = other.cond ? other.cond->clone() : nullptr;
   for (auto& cased : other.cases) {
     cases.emplace_back(cased);
   }
@@ -248,9 +263,9 @@ MatchExpr& MatchExpr::operator=(MatchExpr&& other) noexcept {
 }
 
 IfExpr& IfExpr::operator=(const IfExpr& other) {
-  cond = other.cond->clone();
-  thenExpr = other.thenExpr->clone();
-  elseExpr = other.elseExpr->clone();
+  cond = other.cond ? other.cond->clone() : nullptr;
+  thenExpr = other.thenExpr ? other.thenExpr->clone() : nullptr;
+  elseExpr = other.elseExpr ? other.elseExpr->clone() : nullptr;
   return *this;
 }
 IfExpr& IfExpr::operator=(IfExpr&& other) noexcept {
@@ -266,7 +281,7 @@ BlockExpr& BlockExpr::operator=(const BlockExpr& blockExpr) {
   for (auto& stmt : blockExpr.stmts) {
     stmts.emplace_back(stmt->clone());
   }
-  env = blockExpr.env->clone();
+  env = blockExpr.env ? blockExpr.env->clone() : nullptr;
   return *this;
 }
 BlockExpr& BlockExpr::operator=(BlockExpr&& blockExpr) noexcept {
@@ -280,8 +295,8 @@ BlockExpr& BlockExpr::operator=(BlockExpr&& blockExpr) noexcept {
 }
 
 ForExpr& ForExpr::operator=(const ForExpr& forExpr) {
-  env = forExpr.env->clone();
-  body = forExpr.body->clone();
+  env = forExpr.env ? forExpr.env->clone() : nullptr;
+  body = forExpr.body ? forExpr.body->clone() : nullptr;
   return *this;
 }
 ForExpr& ForExpr::operator=(ForExpr&& forExpr) noexcept {
@@ -291,8 +306,8 @@ ForExpr& ForExpr::operator=(ForExpr&& forExpr) noexcept {
 }
 
 WhileExpr& WhileExpr::operator=(const WhileExpr& whileExpr) {
-  cond = whileExpr.cond->clone();
-  body = whileExpr.body->clone();
+  cond = whileExpr.cond ? whileExpr.cond->clone() : nullptr;
+  body = whileExpr.body ? whileExpr.body->clone() : nullptr;
   return *this;
 }
 WhileExpr& WhileExpr::operator=(WhileExpr&& whileExpr) noexcept {
@@ -302,7 +317,7 @@ WhileExpr& WhileExpr::operator=(WhileExpr&& whileExpr) noexcept {
 }
 
 GetExpr& GetExpr::operator=(const GetExpr& getExpr) {
-  expr = getExpr.expr->clone();
+  expr = getExpr.expr ? getExpr.expr->clone() : nullptr;
   name = getExpr.name;
   return *this;
 }
@@ -313,7 +328,7 @@ GetExpr& GetExpr::operator=(GetExpr&& getExpr) noexcept {
 }
 
 CallExpr& CallExpr::operator=(const CallExpr& callExpr) {
-  expr = callExpr.expr->clone();
+  expr = callExpr.expr ? callExpr.expr->clone() : nullptr;
   for (auto& param : callExpr.params) {
     params.emplace_back(param->clone());
   }
@@ -330,13 +345,15 @@ CallExpr& CallExpr::operator=(CallExpr&& callExpr) noexcept {
 FunctionExpr& FunctionExpr::operator=(const FunctionExpr& functionExpr) {
   if (this == &functionExpr) return *this;
   arity = functionExpr.arity;
-  parameters = functionExpr.parameters->clone();
+  name = functionExpr.name;
+  parameters = functionExpr.parameters ? functionExpr.parameters->clone() : nullptr;
   returnType = functionExpr.returnType;
-  action = functionExpr.action->clone();
+  action = functionExpr.action ? functionExpr.action->clone() : nullptr;
   return *this;
 }
 FunctionExpr& FunctionExpr::operator=(FunctionExpr&& functionExpr) noexcept {
   arity = functionExpr.arity;
+  name = std::move(functionExpr.name);
   parameters = std::move(functionExpr.parameters);
   returnType = std::move(functionExpr.returnType);
   action = std::move(functionExpr.action);

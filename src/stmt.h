@@ -3,6 +3,7 @@
 #ifndef SENIORPROJECT_STMT_H
 #define SENIORPROJECT_STMT_H
 #include <memory>
+#include <source_location>
 #include <type_traits>
 #include <vector>
 
@@ -18,6 +19,8 @@ struct DeclarationStmt {
   std::string name;
   std::unique_ptr<Expr> val;
   DeclarationStmt() = default;
+  DeclarationStmt(bool consted, std::string name, std::unique_ptr<Expr> val)
+      : consted(consted), name(std::move(name)), val(std::move(val)){};
   DeclarationStmt(const DeclarationStmt& declaration_stmt);
   DeclarationStmt(DeclarationStmt&& declaration_stmt) noexcept;
   DeclarationStmt& operator=(DeclarationStmt&& other) noexcept;
@@ -28,6 +31,7 @@ struct DeclarationStmt {
 struct ReturnStmt {
   std::unique_ptr<Expr> val;
   ReturnStmt() = default;
+  ReturnStmt(std::unique_ptr<Expr> val) : val(std::move(val)){};
   ReturnStmt(const ReturnStmt& return_stmt);
   ReturnStmt(ReturnStmt&& return_stmt) noexcept = default;
   ReturnStmt& operator=(ReturnStmt&& other) noexcept = default;
@@ -38,6 +42,7 @@ struct ReturnStmt {
 struct YieldStmt {
   std::unique_ptr<Expr> val;
   YieldStmt() = default;
+  YieldStmt(std::unique_ptr<Expr> val) : val(std::move(val)){};
   YieldStmt(const YieldStmt& yield_stmt);
   YieldStmt(YieldStmt&& yield_stmt) noexcept = default;
   YieldStmt& operator=(YieldStmt&& other) noexcept = default;
@@ -48,6 +53,7 @@ struct YieldStmt {
 struct ExprStmt {
   std::unique_ptr<Expr> val;
   ExprStmt() = default;
+  ExprStmt(std::unique_ptr<Expr> val) : val(std::move(val)){};
   ExprStmt(const ExprStmt& yield_stmt);
   ExprStmt(ExprStmt&& yield_stmt) noexcept = default;
   ExprStmt& operator=(ExprStmt&& other) noexcept = default;
@@ -101,6 +107,8 @@ struct Stmt {
   }
   // Constructors and destructor
   Stmt() = default;
+  Stmt(SourceLocation location, std::shared_ptr<Type> type, InnerStmt stmt)
+      : location(location), type(std::move(type)), stmt(std::move(stmt)){};
   Stmt(const Stmt& stmt);
   Stmt(Stmt&& stmt) noexcept;
   Stmt& operator=(const Stmt& other);
@@ -176,25 +184,20 @@ struct Stmt {
   TypeDef* getTypeDef() { return &std::get<TypeDef>(stmt); }
   ContinueStmt* getContinueStmt() { return &std::get<ContinueStmt>(stmt); }
   // Get string name, based on type, and "" if none
-  std::string getName() {
+  [[nodiscard]] std::string getName() const {
     return std::visit(
-        [](auto&& arg) -> std::string {
-          using currType = std::decay_t<decltype(arg)>;
-          if constexpr (std::is_same_v<currType, DeclarationStmt>) {
-            return arg.name;
-          } else if constexpr (std::is_same_v<ClassStmt, currType>) {
-            return arg.name;
-          } else if constexpr (std::is_same_v<TypeDef, currType>) {
-            return arg.type->getAliasType()->alias;
-          } else if constexpr (std::is_same_v<ImplStmt, currType>) {
-            if (arg.decorating.empty()) {
+[](auto&& arg) -> std::string {
+using T = std::decay_t< decltype(arg)>;
+          if constexpr (std::is_same_v<T, DeclarationStmt>) {return arg.name;
+          } else if constexpr (std::is_same_v<T, ClassStmt>) {return arg.name;
+          } else if constexpr (std::is_same_v<T, ImplStmt>) {
+            if(arg.decorating.empty()) {
               return arg.name;
             } else {
               return "$" + arg.name + "$" + arg.decorating;
             }
-          }
-          return "";
-        },
+          } else if constexpr (std::is_same_v<T, TypeDef>) {return arg.type->getAliasType()->alias;
+          } else {return "Again";}},
         stmt);
   };
   template <typename R>

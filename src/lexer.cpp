@@ -300,7 +300,7 @@ Token Lexer::next() {
           break;
         // optional
         case 'o':
-          if (len == 7 && input.substr(pos + 1, len - 1) == "ptional") {
+          if (len == 8 && input.substr(pos + 1, len - 1) == "ptional") {
             type = TOKEN_TYPE::OPTIONAL;
           }
           break;
